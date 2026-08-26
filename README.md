@@ -1,4 +1,4 @@
-# Chief AI Officer Plugin (100x CAIO)
+# 100x Chief AI Officer
 
 **Your firm pays for Claude every month. This tells you what that money bought,
 where it was wasted, and whether anything sensitive went into it.**
@@ -374,7 +374,7 @@ things in plain English instead of typing commands.
 
 ```
 /plugin marketplace add 100xopensource/chief-ai-officer-plugin
-/plugin install 100x-caio@100x-caio
+/plugin install 100x-chief-ai-officer@100x-chief-ai-officer
 ```
 
 It introduces itself on your next session — what it is, the fact that it hasn't
@@ -485,11 +485,11 @@ python3 -m pipeline.fetch.consent     --data-dir data --show
 ### Prefer not to install?
 
 Every command works without `pip install -e .` if you tell Python where the code
-lives. `caio X` becomes `PYTHONPATH=plugins/100x-caio python3 -m pipeline.cli X`:
+lives. `caio X` becomes `PYTHONPATH=plugins/100x-chief-ai-officer python3 -m pipeline.cli X`:
 
 ```bash
 pip install -r requirements.txt
-export PYTHONPATH=plugins/100x-caio
+export PYTHONPATH=plugins/100x-chief-ai-officer
 
 python3 -m pipeline.cli demo --out data-demo
 python3 -m pipeline.cli all  --data-dir data-demo --out-dir _reports
@@ -498,7 +498,7 @@ python3 -m pipeline.cli all  --data-dir data-demo --out-dir _reports
 ### What's in this repository
 
 ```
-plugins/100x-caio/
+plugins/100x-chief-ai-officer/
   pipeline/
     fetch/        the only modules that touch a network
     lake/         how downloaded data is stored and read back
@@ -532,11 +532,11 @@ One command runs them in order; each also runs alone.
 - [`docs/architecture.md`](docs/architecture.md) — four diagrams: what ships, what
   a person does with it, how data moves, and the rule separating a match from a
   finding.
-- [`references/pipeline_spine.md`](plugins/100x-caio/references/pipeline_spine.md)
+- [`references/pipeline_spine.md`](plugins/100x-chief-ai-officer/references/pipeline_spine.md)
   — what each stage does and where to add things.
-- [`references/data_contract.md`](plugins/100x-caio/references/data_contract.md)
+- [`references/data_contract.md`](plugins/100x-chief-ai-officer/references/data_contract.md)
   — every table and column of downloaded data.
-- [`references/privacy_rules.md`](plugins/100x-caio/references/privacy_rules.md)
+- [`references/privacy_rules.md`](plugins/100x-chief-ai-officer/references/privacy_rules.md)
   — the privacy rules the code enforces, and why each exists.
 - [`HANDOFF.md`](HANDOFF.md) — what's done and what's next.
 

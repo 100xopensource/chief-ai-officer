@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-PLUGIN = REPO / "plugins" / "100x-caio"
+PLUGIN = REPO / "plugins" / "100x-chief-ai-officer"
 HOOK = PLUGIN / "hooks" / "session_start.py"
 
 sys.path.insert(0, str(PLUGIN))
@@ -43,7 +43,7 @@ from pipeline.render.validate import JARGON_PATTERNS  # noqa: E402
 def fake_checkout(root: Path) -> Path:
     """The two things `find_repo_root` insists on, and nothing else."""
     (root / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
-    (root / "plugins" / "100x-caio").mkdir(parents=True)
+    (root / "plugins" / "100x-chief-ai-officer").mkdir(parents=True)
     return root
 
 

@@ -1,6 +1,6 @@
 ---
 name: caio-weekly-reports
-description: Produce the weekly Waste Ledger, Value X-Ray and Exposure Report from a 100x CAIO lake. Use when someone asks to run the weekly reports, refresh them, build one report in particular, asks "what did Claude cost last week", "who is using it", "what sensitive data went through it", or asks for the numbers behind a report that already exists.
+description: Produce the weekly Waste Ledger, Value X-Ray and Exposure Report from a 100x Chief AI Officer lake. Use when someone asks to run the weekly reports, refresh them, build one report in particular, asks "what did Claude cost last week", "who is using it", "what sensitive data went through it", or asks for the numbers behind a report that already exists.
 ---
 
 # Producing the weekly reports

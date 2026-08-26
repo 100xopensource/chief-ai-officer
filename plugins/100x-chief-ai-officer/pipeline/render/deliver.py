@@ -150,7 +150,7 @@ def deliver(report_path: Path, out_dir: Path, *, edition: str = "shareable",
         "files": {},
         "findings_count": len(block.get("findings") or []),
         "provenance": (
-            "Built from this organisation's own Claude usage by the 100x CAIO pipeline. "
+            "Built from this organisation's own Claude usage by the 100x Chief AI Officer pipeline. "
             "The data is read locally and nothing is sent anywhere. The report renders "
             "itself from the data record embedded inside it, so the file you received "
             "and the data it displays cannot disagree."
@@ -255,7 +255,7 @@ def _cover_note(manifest: JsonObject, block: JsonObject) -> str:
         "",
         "---",
         "",
-        f"Packaged {manifest['packaged_at']} by the 100x CAIO pipeline. "
+        f"Packaged {manifest['packaged_at']} by the 100x Chief AI Officer pipeline. "
         "Checksums are in `CHECKSUMS.txt`; the gates this file passed are listed in "
         "`MANIFEST.json`.",
         "",

@@ -1,9 +1,9 @@
 ---
 name: caio-setup
-description: Set up 100x CAIO for the first time, or check an existing setup. Use when someone has just installed the plugin, asks "what does this do", "how do I start", "where do I get the reports", asks about credentials or API keys for it, or wants to see what the reports look like before connecting any real data. Also use when a report run fails and the cause might be setup rather than data.
+description: Set up 100x Chief AI Officer for the first time, or check an existing setup. Use when someone has just installed the plugin, asks "what does this do", "how do I start", "where do I get the reports", asks about credentials or API keys for it, or wants to see what the reports look like before connecting any real data. Also use when a report run fails and the cause might be setup rather than data.
 ---
 
-# Getting started with 100x CAIO
+# Getting started with 100x Chief AI Officer
 
 ## What this plugin does, in plain words
 
@@ -60,10 +60,14 @@ This needs two things from whoever administers your company's Claude account:
 - **A Compliance API key**, for conversation content. Only needed for the
   Exposure Report. Without it the other two reports still work.
 
-Set whichever you have and pull:
+Set whichever you have and pull. The two keys go in **separate** variables —
+each pull resolves its own, so one shared `CAIO_API_KEY` would hand one of them
+a key of the wrong type:
 
 ```bash
-export CAIO_API_KEY="sk-ant-..."
+export ANTHROPIC_ADMIN_KEY="sk-ant-admin-..."              # for analytics
+export ANTHROPIC_COMPLIANCE_ACCESS_KEY="sk-ant-api01-..."  # for content
+
 python3 -m pipeline.fetch.analytics  --data-dir data     # cost and usage
 python3 -m pipeline.fetch.compliance --data-dir data     # conversation content
 
@@ -97,11 +101,11 @@ dates the run resolves to. It never pulls anything and never fails destructively
 
 | What you see | What it means |
 |---|---|
-| `command not found: caio` | The package is not installed. `pip install -e .` from the repository root, or put `PYTHONPATH=plugins/100x-caio` in front of `python3 -m pipeline.cli`. |
+| `command not found: caio` | The package is not installed. `pip install -e .` from the repository root, or put `PYTHONPATH=plugins/100x-chief-ai-officer` in front of `python3 -m pipeline.cli`. |
 | `no lake at data` | Nothing has been pulled yet. Run `caio demo`, or pull. |
 | `BLOCKED  Exposure Report` | Conversation content is not in this lake. Pull it, or produce the other two. |
 | `does not pass its gates` | The report was written but must not be shared. The failing gate names the reason. Fix the report; there is deliberately no override. |
-| `no API key` | `CAIO_API_KEY` is not set in this shell. |
+| `no API key` | No key in this shell. Analytics wants `ANTHROPIC_ADMIN_KEY`; the content pull wants `ANTHROPIC_COMPLIANCE_ACCESS_KEY`. An Admin key will not serve the content pull, or the other way round. |
 | nothing at all happened after installing the plugin | The greeting only speaks once per machine. `caio welcome` prints it, or `CAIO_WELCOME=always` restores it for every session. |
 
 ## What to say when someone asks "is this safe"

@@ -1,4 +1,4 @@
-"""100x CAIO — the report pipeline.
+"""100x Chief AI Officer — the report pipeline.
 
 Six stages, each independently runnable, sharing one local lake:
 

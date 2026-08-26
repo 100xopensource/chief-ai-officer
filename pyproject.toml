@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "100x-caio"
+name = "100x-chief-ai-officer"
 version = "2.0.0"
 description = "Read your organisation's own Claude usage and produce three executive reports. Runs locally; nothing is uploaded."
 readme = "README.md"
@@ -44,10 +44,10 @@ caio = "pipeline.cli:main"
 # pipeline` work from anywhere, which is what removes PYTHONPATH from every
 # instruction in the documentation.
 [tool.setuptools]
-package-dir = { "" = "plugins/100x-caio" }
+package-dir = { "" = "plugins/100x-chief-ai-officer" }
 
 [tool.setuptools.packages.find]
-where = ["plugins/100x-caio"]
+where = ["plugins/100x-chief-ai-officer"]
 include = ["pipeline*"]
 
 # The report templates are the product. Without them an installed copy builds

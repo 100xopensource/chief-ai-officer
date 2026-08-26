@@ -1,4 +1,4 @@
-# Handoff — 100x CAIO
+# Handoff — 100x Chief AI Officer
 
 **Read this if you are picking this work up.** For what the project is and how
 to run it, read [`README.md`](README.md) first; this file is only about state.
@@ -7,7 +7,7 @@ to run it, read [`README.md`](README.md) first; this file is only about state.
 
 | Decision | Value |
 |---|---|
-| Product name in reports and README | **100x CAIO** |
+| Product name in reports and README | **100x Chief AI Officer** |
 | Licence | Apache-2.0 |
 | First release scope | All three reports |
 | Architecture | Full staged pipeline, x0 through x5 |
@@ -94,7 +94,7 @@ credentials, and is covered by the test suite.
 
 Not style preferences. Each was paid for by a wrong number reaching a reader,
 and the code enforces them so they cannot be forgotten. See
-[`references/privacy_rules.md`](plugins/100x-caio/references/privacy_rules.md).
+[`references/privacy_rules.md`](plugins/100x-chief-ai-officer/references/privacy_rules.md).
 
 - **Persist raw before parsing.** A parsing bug should cost a local re-parse,
   never another full pull.

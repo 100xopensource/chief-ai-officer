@@ -41,8 +41,14 @@ Keys are read from the environment, never from a file in the repository and
 never from a command-line argument that would land in shell history:
 
 ```bash
-export CAIO_API_KEY="sk-ant-..."
+export ANTHROPIC_ADMIN_KEY="sk-ant-admin-..."              # cost and usage
+export ANTHROPIC_COMPLIANCE_ACCESS_KEY="sk-ant-api01-..."  # conversation content
 ```
+
+The two pulls need different keys and each resolves its own variable, so a
+single `CAIO_API_KEY` cannot serve both: whichever key you set it to, the other
+pull gets a key of the wrong type. `CAIO_API_KEY` is still read first by both,
+which makes it useful only when you deliberately want one key for one pull.
 
 `.gitignore` excludes `.env`, `*.key` and the whole lake by construction, and
 `tools/scrubber/scrub.py` fails CI if a credential-shaped string reaches a

@@ -39,7 +39,7 @@ jobs:
                         'verdicts.jsonl' 'verifications.jsonl' 'part.jsonl' \
                         'snapshot.jsonl' 'exclusion_list.json'; do
             tracked=$(git ls-files "**/$marker" "$marker" | \
-                      grep -v '^plugins/100x-caio/pipeline/demo/' || true)
+                      grep -v '^plugins/100x-chief-ai-officer/pipeline/demo/' || true)
             if [ -n "$tracked" ]; then
               echo "::error::a lake is tracked — found $marker at: $tracked"
               fail=1
@@ -51,7 +51,7 @@ jobs:
           fi
           [ "$fail" = "0" ] || exit 1
           for pattern in '_reports/*' 'raw/*' '*.jsonl'; do
-            tracked=$(git ls-files "$pattern" | grep -v '^plugins/100x-caio/pipeline/demo/' || true)
+            tracked=$(git ls-files "$pattern" | grep -v '^plugins/100x-chief-ai-officer/pipeline/demo/' || true)
             if [ -n "$tracked" ]; then
               echo "::error::pipeline output is tracked: $tracked"
               exit 1

@@ -57,7 +57,7 @@ jobs:
           python3 - <<'PY'
           import json, sys
           from pathlib import Path
-          sys.path.insert(0, "plugins/100x-caio")
+          sys.path.insert(0, "plugins/100x-chief-ai-officer")
           from pipeline.render.validate import extract_block
           html = next(Path("/tmp/readme-reports").glob("exposure-report-*.html")).read_text()
           block, _ = extract_block(html)
@@ -70,7 +70,7 @@ jobs:
         # empty, which is the situation it exists for. It must speak once, stay
         # quiet after that, and never exit non-zero.
         run: |
-          export CLAUDE_PLUGIN_ROOT="$PWD/plugins/100x-caio"
+          export CLAUDE_PLUGIN_ROOT="$PWD/plugins/100x-chief-ai-officer"
           export CLAUDE_PLUGIN_DATA="$(mktemp -d)"
           hook="$CLAUDE_PLUGIN_ROOT/hooks/session_start.py"
           echo '{"session_start_reason":"startup"}' | python3 "$hook" > /tmp/first.json
@@ -91,7 +91,7 @@ jobs:
           python3 -m pipeline.cli demo --out /tmp/demo-lake --seed 20260819
           python3 -m pipeline.cli all --data-dir /tmp/demo-lake --out-dir /tmp/demo-reports
         env:
-          PYTHONPATH: plugins/100x-caio
+          PYTHONPATH: plugins/100x-chief-ai-officer
 
       - name: Validate rendered reports
         run: |
@@ -99,7 +99,7 @@ jobs:
             python3 -m pipeline.render.validate "$f"
           done
         env:
-          PYTHONPATH: plugins/100x-caio
+          PYTHONPATH: plugins/100x-chief-ai-officer
 
   plugin-manifest:
     runs-on: ubuntu-latest

@@ -1,6 +1,6 @@
 ---
 name: caio-deliver-report
-description: Package a built 100x CAIO report for sending to someone, with a cover note, a manifest and checksums. Use when asked to send, share, email, hand off, or deliver a report, to prepare it for a board pack or an exec meeting, or to produce a named edition for a compliance reviewer.
+description: Package a built 100x Chief AI Officer report for sending to someone, with a cover note, a manifest and checksums. Use when asked to send, share, email, hand off, or deliver a report, to prepare it for a board pack or an exec meeting, or to produce a named edition for a compliance reviewer.
 ---
 
 # Delivering a report

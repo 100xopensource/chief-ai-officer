@@ -1,5 +1,5 @@
 {
-  "name": "100x-caio",
+  "name": "100x-chief-ai-officer",
   "owner": {
     "name": "100x",
     "url": "https://100xteam.ai"
@@ -10,8 +10,8 @@
   },
   "plugins": [
     {
-      "name": "100x-caio",
-      "source": "./plugins/100x-caio",
+      "name": "100x-chief-ai-officer",
+      "source": "./plugins/100x-chief-ai-officer",
       "description": "Turn your organisation's own Claude usage into three executive reports: what it cost and where the waste is, what the spending bought, and what sensitive material reached the AI. Runs locally; nothing is uploaded.",
       "version": "2.0.0",
       "author": {

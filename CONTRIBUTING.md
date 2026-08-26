@@ -46,7 +46,7 @@ diff.
 - **Every finding needs an owner and an action they control.**
 - **Never test a credential.** Liveness is judged from context.
 
-[`references/privacy_rules.md`](plugins/100x-caio/references/privacy_rules.md)
+[`references/privacy_rules.md`](plugins/100x-chief-ai-officer/references/privacy_rules.md)
 has the full set with what each one cost.
 
 ## Where things go

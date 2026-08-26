@@ -1,6 +1,6 @@
 ---
 name: caio-explain-report
-description: Explain what a 100x CAIO report says and where a number came from, in plain language. Use when someone asks what a figure means, challenges a number, asks "how did you get that", "why is this a floor", "what does candidate mean", asks to walk an executive through a report, or wants a report summarised for someone who will not open it.
+description: Explain what a 100x Chief AI Officer report says and where a number came from, in plain language. Use when someone asks what a figure means, challenges a number, asks "how did you get that", "why is this a floor", "what does candidate mean", asks to walk an executive through a report, or wants a report summarised for someone who will not open it.
 ---
 
 # Explaining a report

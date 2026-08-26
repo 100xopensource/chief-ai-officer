@@ -15,7 +15,7 @@ graph TD
     REPO["<b>100xopensource/chief-ai-officer-plugin</b><br/>Apache-2.0"]
 
     REPO --> MKT[".claude-plugin/marketplace.json<br/><i>makes the repo installable</i>"]
-    REPO --> PLUGIN["plugins/100x-caio/"]
+    REPO --> PLUGIN["plugins/100x-chief-ai-officer/"]
     REPO --> TOOLS["tools/<br/>scrubber · manifest checker<br/><i>publication gates</i>"]
     REPO --> DOCS["docs/mock-reports/<br/><i>3 example reports,<br/>fictional company</i>"]
 

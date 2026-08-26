@@ -357,7 +357,7 @@ def cmd_all(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="pipeline.cli",
-        description="100x CAIO — read your own Claude usage, produce three reports.",
+        description="100x Chief AI Officer — read your own Claude usage, produce three reports.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Start here. No credentials, no real data, two commands:\n"

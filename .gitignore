@@ -14,7 +14,7 @@ data-*/
 **/_reports/
 **/raw/
 *.jsonl
-!plugins/100x-caio/pipeline/demo/**/*.jsonl
+!plugins/100x-chief-ai-officer/pipeline/demo/**/*.jsonl
 _reports/
 raw/
 

@@ -1,4 +1,4 @@
-# Runtime dependencies for the 100x CAIO pipeline.
+# Runtime dependencies for the 100x Chief AI Officer pipeline.
 #
 # Deliberately small. The lake's write side, the raw store, the gap check, and
 # the render/validate gates are stdlib-only, so the parts that must run in a

@@ -48,7 +48,7 @@ EXAMPLES_URL = f"{REPO_URL}/tree/main/docs/mock-reports"
 
 # Where a checkout keeps things, relative to the repository root.
 EXAMPLES_DIR = Path("docs/mock-reports")
-PLUGIN_DIR = Path("plugins/100x-caio")
+PLUGIN_DIR = Path("plugins/100x-chief-ai-officer")
 
 # Folder names the README and the skills tell people to use. Checked so the
 # message can say "you already have one" instead of telling somebody to build
@@ -135,7 +135,7 @@ def _run(state: JsonObject, command: str) -> str:
 
 def what_it_is() -> list[str]:
     return [
-        "**100x CAIO** reads the Claude usage records your company already has, and",
+        "**100x Chief AI Officer** reads the Claude usage records your company already has, and",
         "writes three reports about them:",
         "",
         "| Report | Written for | The question it answers |",
@@ -196,7 +196,7 @@ def look_at_an_example(state: JsonObject) -> list[str]:
                 "repository root."]
     else:
         # No checkout on this machine at all, so the first step is getting one.
-        out += ["```bash", f"git clone {REPO_URL}.git", "cd 100x-caio",
+        out += ["```bash", f"git clone {REPO_URL}.git", "cd 100x-chief-ai-officer",
                 "pip install -e .", "", "caio demo --out data-demo",
                 "caio all  --data-dir data-demo --out-dir _reports", "```"]
     return out
@@ -270,7 +270,7 @@ def brief_for_claude(state: JsonObject | None = None) -> str:
     """
     state = state if state is not None else detect()
     lines = [
-        "The 100x CAIO plugin was just installed and this is the first session "
+        "The 100x Chief AI Officer plugin was just installed and this is the first session "
         "since. The person may not know what it does.",
         "",
         "Greet them briefly and in plain English — no jargon, no stage names, no "

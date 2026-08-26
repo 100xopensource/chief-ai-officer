@@ -43,7 +43,7 @@ MARKER_NAME = "welcomed.json"
 # Short enough to read in the transcript without scrolling. The detail goes to
 # Claude as context; this line is only so the person sees that something is
 # there and did not run.
-SYSTEM_MESSAGE = ("100x CAIO is installed. It has not read or pulled anything — "
+SYSTEM_MESSAGE = ("100x Chief AI Officer is installed. It has not read or pulled anything — "
                   "ask for an example report, or for help setting it up.")
 
 
@@ -68,7 +68,7 @@ def marker_path() -> Path:
     if data:
         return Path(data) / MARKER_NAME
     cache = os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")
-    return Path(cache) / "100x-caio" / MARKER_NAME
+    return Path(cache) / "100x-chief-ai-officer" / MARKER_NAME
 
 
 def should_speak() -> bool:
@@ -88,7 +88,7 @@ def remember() -> None:
         path.write_text(json.dumps({
             "welcomed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "note": "Delete this file, or set CAIO_WELCOME=always, to see the "
-                    "100x CAIO welcome again. `caio welcome` prints it any time.",
+                    "100x Chief AI Officer welcome again. `caio welcome` prints it any time.",
         }, indent=2) + "\n", encoding="utf-8")
     except OSError:
         pass

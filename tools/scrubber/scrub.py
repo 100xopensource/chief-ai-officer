@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scrubber — the pre-publication gate for 100x CAIO.
+"""Scrubber — the pre-publication gate for 100x Chief AI Officer.
 
 Fails the build if anything that belongs to a real organization has been
 committed: personal names, email addresses, corporate domains, credentials,
@@ -216,7 +216,7 @@ def redact(value: str) -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Pre-publication scrubber for 100x CAIO.")
+    ap = argparse.ArgumentParser(description="Pre-publication scrubber for 100x Chief AI Officer.")
     ap.add_argument("--all", action="store_true", help="scan every file, not only tracked ones")
     ap.add_argument("--path", help="restrict the scan to a subtree")
     ap.add_argument("--explain", action="store_true", help="print each rule and why it exists")
