@@ -1,0 +1,34 @@
+{
+  "name": "100x-caio",
+  "owner": {
+    "name": "100x",
+    "url": "https://100xteam.ai"
+  },
+  "metadata": {
+    "description": "Chief-AI-Officer reporting for organisations running Claude Enterprise. Reads your own usage data and produces three executive reports.",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "100x-caio",
+      "source": "./plugins/100x-caio",
+      "description": "Turn your organisation's own Claude usage into three executive reports: what it cost and where the waste is, what the spending bought, and what sensitive material reached the AI. Runs locally; nothing is uploaded.",
+      "version": "2.0.0",
+      "author": {
+        "name": "100x",
+        "url": "https://100xteam.ai"
+      },
+      "homepage": "https://github.com/100xopensource/chief-ai-officer-plugin",
+      "license": "Apache-2.0",
+      "category": "analytics",
+      "keywords": [
+        "reporting",
+        "governance",
+        "compliance",
+        "cost",
+        "usage-analytics",
+        "enterprise"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Value X-Ray — what your team did with AI</title>
+<!--
+  100x CAIO · VALUE X-RAY · SELF-RENDERING TEMPLATE (RENDER_BLOCK v3)
+
+  This file renders itself from the JSON in the script tag near the bottom.
+  To produce a new edition, replace ONLY that JSON:
+
+      python3 -m pipeline.render.build --report value --block <render.json> --out <file>.html
+
+  Do not hand-edit the markup, the styles, or the script.
+
+  Owner of this report: whoever owns the AI programme.
+  It answers a different question from the cost report: not what was spent, but
+  what the spending bought, and what is getting in the way of it buying more.
+-->
+<style>
+  :root{
+    --paper:#faf8f3; --card:#ffffff; --ink:#0e1b20; --teal:#083c46; --muted:#5c6b70;
+    --cyan:#0d7f95; --orange:#c05e12; --green:#1c7a4d; --amber-bg:#fdf6e7;
+    --line:#e3ded2; --verdict:#f2efe6;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.6}
+  .wrap{max-width:860px;margin:0 auto;padding:38px 28px 56px}
+
+  .mast{border-top:3px solid var(--teal);padding:16px 0 0}
+  .mast .brand{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .mast .brand b{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--teal);text-transform:uppercase}
+  .mast .brand span{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  h1{font-size:32px;line-height:1.14;letter-spacing:-.01em;margin:12px 0 2px;font-weight:750}
+  .weeklabel{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--cyan);text-transform:uppercase}
+
+  .verdict{background:var(--verdict);border:1px solid var(--line);border-left:5px solid var(--teal);padding:18px 22px;margin:20px 0 0}
+  .verdict .k{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .verdict p{font-size:16.5px;line-height:1.62;margin-top:9px}
+  .verdict p + p{margin-top:11px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:18px 0 0}
+  .stat{background:var(--card);padding:13px 13px 12px}
+  .stat .v{font-size:22px;font-weight:760;letter-spacing:-.01em}
+  .stat .k{font-size:11.5px;color:var(--ink);margin-top:5px;font-weight:600;line-height:1.3}
+  .stat .s{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  .chartbox{background:var(--card);border:1px solid var(--line);border-top:none;padding:16px 16px 8px}
+  .chartbox .k{font-size:12px;color:var(--ink);font-weight:600}
+  .chartbox svg{width:100%;height:auto;display:block;margin-top:6px}
+  .chartbox .cap{font-size:11px;color:var(--muted);padding:6px 2px 6px;line-height:1.5}
+  .mv-pill{font-family:var(--mono);font-size:8px;letter-spacing:.09em;padding:3px 8px;
+    border:1px solid;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv-new{color:#fff;background:var(--teal);border-color:var(--teal)}
+  .mv-worsening{color:#fff;background:var(--red);border-color:var(--red)}
+  .mv-improving{color:var(--green);border-color:var(--green)}
+  .mv-recurring{color:var(--muted);border-color:var(--muted)}
+  .mv-since{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45}
+  .verifline{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-top:none;border-left:3px solid var(--green);padding:8px 12px;background:var(--card);line-height:1.5}
+
+  .moves{margin-top:26px;background:var(--teal);color:#eef6f7;padding:20px 22px}
+  .moves .k{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:#7fd6e4;text-transform:uppercase;font-weight:700}
+  .mv{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.14)}
+  .mv:last-child{border-bottom:none;padding-bottom:2px}
+  .mv .row1{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .mv .n{font-family:var(--mono);font-size:13px;color:#7fd6e4;font-weight:700}
+  .mv .t{flex:1;font-size:15.5px;font-weight:640;min-width:200px}
+  .mv .own{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv .stake{margin:6px 0 0 27px;font-size:13px;color:rgba(238,246,247,.9);line-height:1.5}
+  .moves .note{font-size:11px;color:rgba(238,246,247,.72);margin-top:12px;line-height:1.5}
+
+  .sect{margin:34px 0 0}
+  .sect>.shead{border-bottom:2px solid var(--teal);padding-bottom:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .sect>.shead h2{font-size:13px;font-family:var(--mono);letter-spacing:.13em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .sect>.shead span{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .sect .subline{font-size:12.5px;color:var(--muted);margin:8px 0 14px}
+
+  .f{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);padding:16px 20px 15px;margin-bottom:12px;break-inside:avoid}
+  .f h3{font-size:19px;line-height:1.3;font-weight:720;letter-spacing:-.005em}
+  .f .detail{font-size:14px;color:#2b3a40;margin-top:8px;line-height:1.6}
+  .f .held{margin-top:10px;background:var(--amber-bg);border-left:3px solid var(--orange);padding:8px 12px;font-size:12px;color:#7a4a08;line-height:1.5}
+  .f .held b{text-transform:uppercase;letter-spacing:.04em;font-size:10.5px}
+
+  .board{background:var(--card);border:1px solid var(--line);overflow-x:auto}
+  .board table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+  .board th{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .board td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .board td.r,.board th.r{text-align:right;font-variant-numeric:tabular-nums}
+  .board tr:last-child td{border-bottom:none}
+  .flag{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+  .flag--green{background:var(--green)}
+  .flag--amber{background:var(--orange)}
+  .flag--red{background:#b3261e}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .w{background:var(--card);border:1px solid var(--line);padding:11px 13px;break-inside:avoid}
+  .w .l{font-size:12.5px;color:var(--ink);font-weight:640}
+  .w .d{font-size:12.5px;color:#2b3a40;margin-top:3px;line-height:1.5}
+
+  .plainlist p{font-size:13.5px;color:#2b3a40;padding-left:15px;position:relative;margin-top:8px;line-height:1.55}
+  .plainlist.need p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--orange)}
+  .plainlist.read p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--muted)}
+
+  .foot{margin-top:40px;border-top:2px solid var(--teal);padding-top:14px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .foot span{font-family:var(--mono);font-size:9px;letter-spacing:.09em;color:var(--muted);text-transform:uppercase}
+
+  @media (max-width:680px){
+    .stats{grid-template-columns:1fr 1fr}
+    .twocol{grid-template-columns:1fr}
+    h1{font-size:25px}
+  }
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    @page{margin:13mm}
+    .f,.w,.moves,.verdict,.board{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brand"><b>100x CAIO &middot; Value X-Ray</b><span id="m-scope"></span></div>
+    <p class="weeklabel" id="m-week"></p>
+    <h1>What your team did with AI &mdash; and what's getting in the way.</h1>
+    <div class="verdict"><div class="k">The bottom line</div><div id="verdict"></div></div>
+    <div class="stats" id="m-stats"></div>
+    <div class="chartbox">
+      <div class="k" id="chart-title"></div>
+      <div id="chart"></div>
+      <div class="cap" id="chart-cap"></div>
+    </div>
+    <p class="verifline" id="m-verif"></p>
+  </header>
+
+  <section class="moves">
+    <div class="k">What to do this week &mdash; most important first</div>
+    <div id="moves"></div>
+    <p class="note" id="mv-note"></p>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we found</h2><span id="f-count"></span></div>
+    <p class="subline" id="f-sub"></p>
+    <div id="findings"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>How each team is doing</h2><span id="board-note"></span></div>
+    <p class="subline" id="board-sub"></p>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>Smaller things to keep an eye on</h2><span>Worth noting, not urgent</span></div>
+    <div class="twocol" id="watch"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we need from you</h2><span></span></div>
+    <p class="subline">Each of these makes a finding above sharper, or puts a number on it.</p>
+    <div class="plainlist need" id="need"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>How to read this report</h2><span></span></div>
+    <div class="plainlist read" id="howto"></div>
+  </section>
+
+  <footer class="foot">
+    <span>100x CAIO &middot; Open source &middot; Runs on your systems &middot; Nothing uploaded</span>
+    <span id="foot-note"></span>
+  </footer>
+</div>
+
+<script type="application/json" id="render-block">
+{
+  "RENDER_BLOCK": "v3",
+  "report_kind": "value",
+  "week_label": "Week of July 6–12, 2026",
+  "week_ending": "2026-07-12",
+  "scope_tag": "Example report · invented company · shareable edition",
+  "verdict": [
+    "The spending is buying finished work. Four in ten conversations last week ended with a document somebody kept, and the number of documents produced each week has more than doubled in a month — mostly the same recurring jobs, now done faster.",
+    "The biggest thing slowing people down is not Claude, it is plumbing. The in-house data connection keeps failing, so people have gone back to copying the numbers in by hand.",
+    "And people have been specific about what would help. They named the exact company systems they want connected next, which is a ready-made priority list."
+  ],
+  "stats": [
+    {
+      "value": "71",
+      "label": "People used Claude last week",
+      "sub": "out of 112 who have it"
+    },
+    {
+      "value": "40%",
+      "label": "Conversations that produced a finished document",
+      "sub": "something a person kept and used"
+    },
+    {
+      "value": "67%",
+      "label": "Share of spending where we can see the work",
+      "sub": "the rest runs in the coding tool and the desktop assistant, which report cost but not what was done"
+    },
+    {
+      "value": "268",
+      "label": "Conversations read to check these findings",
+      "sub": "they held up 96% of the time"
+    }
+  ],
+  "trend": {
+    "title": "Finished documents produced each week",
+    "series": [
+      {
+        "label": "Jun 8",
+        "value": 2183
+      },
+      {
+        "label": "Jun 15",
+        "value": 2948
+      },
+      {
+        "label": "Jun 22",
+        "value": 4800
+      },
+      {
+        "label": "Jun 29",
+        "value": 3882
+      },
+      {
+        "label": "Jul 6",
+        "value": 8155,
+        "current": true
+      }
+    ],
+    "caption": "Last week's total was more than double the recent weekly average. An earlier version of this number looked like a sevenfold jump; that turned out to be a counting quirk — a label in the vendor's data only started being applied partway through the period — and it was corrected before publishing."
+  },
+  "verifline": "Before anything here was written down, 268 of the actual conversations were read to confirm the findings were real. When independently double-checked, they held up 96% of the time, and whatever did not hold up was dropped rather than softened.",
+  "moves": [
+    {
+      "rank": 1,
+      "move": "Fix the in-house data connection, which keeps logging people out and dropping mid-task.",
+      "owner": "IT",
+      "at_stake": "The people who rebuild weekly reports and the ones who run regular analytics — that group has already halved its use of the connection over five weeks. Start by reproducing the failures with the handful of people who hit them most."
+    },
+    {
+      "rank": 2,
+      "move": "Get the analytics connection working. One feature, its field-value search, fails on nearly every attempt.",
+      "owner": "Business intelligence and IT",
+      "at_stake": "Fewer than five people asked for access and could not get in. Several others are already pushing through the errors and can demonstrate the failures."
+    },
+    {
+      "rank": 3,
+      "move": "Turn the four most-repeated document jobs into shared, reusable templates.",
+      "owner": "Enablement",
+      "at_stake": "Each is roughly one to five hours of hands-on work every week: weekly reports, case write-ups, job descriptions, standard procedures."
+    }
+  ],
+  "moves_note": "Ranked by how many people are affected and how often. No money figures yet — turning these hours into a number needs your average loaded hourly rate.",
+  "findings_count": "6 findings · read-verified",
+  "findings_sub": "Every one was confirmed by reading the actual conversations behind it, not inferred from surface statistics.",
+  "findings": [
+    {
+      "headline": "People are producing far more finished documents, and it is becoming routine.",
+      "detail": "The number of documents produced each week has more than doubled in the past month. Looking at what drives it, most of the growth is the same handful of jobs done over and over — weekly reports, job descriptions, standard operating procedures — rather than scattered one-offs. That is exactly the kind of work worth turning into a shared template, so the shortcut belongs to everyone instead of to whoever worked it out first.",
+      "status": "worsening",
+      "status_note": "Seen in 3 runs in a row, and moving the wrong way."
+    },
+    {
+      "headline": "Weekly reporting is growing fast, but people are doing it the hard way.",
+      "detail": "The number of people rebuilding the same weekly reports has nearly tripled. Almost all of them — 92%, up from about two-thirds a month ago — are now pasting the underlying data in by hand, because the automatic connection that used to pull it stopped working reliably. The demand is real and growing; the plumbing fell away underneath it.",
+      "status": "new",
+      "status_note": "New this week."
+    },
+    {
+      "headline": "The in-house data connection broke, and people gave up on it.",
+      "detail": "Use of the main internal data connection fell by more than half in five weeks, from 78 conversations a week to 35, and from 24 people to 13. Reading the conversations shows why: it kept failing — logging people out mid-task, tools going missing, approval prompts not responding. People did not stop needing the data. They stopped trusting the connection and went back to doing it by hand, which is the more expensive failure because it does not show up as an error anywhere.",
+      "status": "recurring",
+      "status_note": "Seen in 5 runs in a row, at about the same level."
+    },
+    {
+      "headline": "The new analytics connection fails on four of every ten attempts.",
+      "detail": "Newly connected, it failed on 41% of attempts in its first two weeks, and almost all of those failures trace to a single feature: its field-value search. People mostly pushed through by reconnecting or working around it. A start like this is what turns people off a tool before it ever catches on, so it is worth fixing while the usage is still there to save.",
+      "status": "improving",
+      "status_note": "Seen in 4 runs in a row, and moving the right way."
+    },
+    {
+      "headline": "Your team named exactly which systems to connect next.",
+      "detail": "People explicitly asked to connect Claude to specific company systems: the analytics platform, write-back to the finance system, the payroll system, and email. That is a priority list nobody had to guess at. An earlier estimate suggested twenty-plus people across three areas; reading the actual requests produced a smaller and much more specific list, which is the more useful one.",
+      "status": "recurring",
+      "status_note": "Seen in 2 runs in a row, at about the same level."
+    },
+    {
+      "headline": "When Claude hits an error it almost always recovers, so wasted effort is small.",
+      "detail": "It is easy to assume errors mean wasted money. Checking directly: 94% of the time Claude ran into a problem, it recovered and finished the task anyway. An earlier rough estimate overstated the wasted effort roughly tenfold. Errors here are a nuisance rather than a real cost — which is worth saying plainly, because it is the kind of number that otherwise gets repeated for years.",
+      "waiting_on": "The average loaded hourly rate, to put a figure on the nuisance.",
+      "status": "new",
+      "status_note": "New this week."
+    }
+  ],
+  "scoreboard_sub": "Teams with fewer than five active people are grouped together, because in a company this size a small team's row identifies individuals.",
+  "scoreboard_note": "Active people only",
+  "scoreboard": {
+    "head": [
+      "Team",
+      "People using it",
+      "Days a week, typical",
+      "Doing substantial work",
+      "Mainly used for",
+      "Read"
+    ],
+    "rows": [
+      [
+        "Commercial",
+        "18",
+        "3.4",
+        "44%",
+        "Weekly reporting, customer analysis",
+        "green|Strong and deepening"
+      ],
+      [
+        "Operations",
+        "16",
+        "2.9",
+        "31%",
+        "Procedures, incident write-ups",
+        "green|Solid, broadening"
+      ],
+      [
+        "Finance",
+        "12",
+        "3.1",
+        "25%",
+        "Reconciliation, forecast rebuilds",
+        "amber|Broad but shallow — the clearest place to deepen"
+      ],
+      [
+        "Platform",
+        "9",
+        "4.1",
+        "61%",
+        "Code, data pipelines",
+        "green|Deepest use in the company"
+      ],
+      [
+        "People",
+        "7",
+        "1.8",
+        "18%",
+        "Job descriptions, case write-ups",
+        "amber|Frequent enough, rarely substantial"
+      ],
+      [
+        "Other teams grouped",
+        "9",
+        "1.4",
+        "12%",
+        "Occasional drafting",
+        "red|Barely used — worth asking why"
+      ]
+    ]
+  },
+  "watch": [
+    {
+      "label": "The standard model gets more expensive at the end of August",
+      "detail": "One of the models used most rises in price. Worth planning for now rather than discovering it on an invoice."
+    },
+    {
+      "label": "Some conversations show a title but no content",
+      "detail": "Around 16 of them. Most likely a quirk in how deleted chats are exported. Worth watching, not acting on."
+    },
+    {
+      "label": "A few people want Claude to send, not just read",
+      "detail": "Requests to have Claude send email and create forms, rather than only pull information."
+    },
+    {
+      "label": "Some work is stuck waiting on manual exports",
+      "detail": "People downloading data by hand because there is no live connection yet."
+    },
+    {
+      "label": "People are working around limits in moving work between conversations",
+      "detail": "A handful are hitting walls carrying context from one chat to the next. Small friction, worth knowing about."
+    },
+    {
+      "label": "One heavy user's cost per result rose",
+      "detail": "Worth re-checking after the price change at the end of August."
+    }
+  ],
+  "need_from_you": [
+    "Your average loaded hourly rate, so the hours above can be turned into a money figure.",
+    "Confirmation of when the in-house data connection was having problems, to close out why usage dropped.",
+    "Who currently has access to the analytics platform — fewer than five people asked and could not get in.",
+    "An administrator key, so the heaviest user's cost can be broken down by tool.",
+    "A way to see what happens inside the desktop assistant, which is a meaningful share of the work we currently cannot see into."
+  ],
+  "how_to_read": [
+    "\"Last week\" means Monday 6 July to Sunday 12 July. \"A month ago\" is the four weeks before that, averaged to a weekly figure so the comparison is fair.",
+    "We can see the actual work behind about two-thirds of the spending. The rest runs in the coding tool and the desktop assistant, which report what they cost but not what was done — so this report does not guess about them, and says so wherever it matters.",
+    "Nothing here comes from surface statistics alone. The real conversations were read to confirm each finding, they held up 96% of the time when independently double-checked, and anything that did not hold up was dropped.",
+    "We correct our own mistakes in the open. One figure in this report first looked like a sevenfold jump; it was traced to a counting quirk and corrected to a bit over 100% before publishing.",
+    "These are last week's numbers. Very recent figures can still be revised for about a month as the vendor finalises its data, so treat the most recent week as close to final rather than final.",
+    "Our own analysis work is excluded, so the report never counts itself.",
+    "Individuals are described by what happened, not by name. Any group smaller than five people is described as \"fewer than five\" rather than counted."
+  ],
+  "reconciliation": {
+    "documents_by_job_type": {
+      "total": 8155,
+      "parts": [
+        {
+          "label": "weekly reporting",
+          "value": 2940
+        },
+        {
+          "label": "job descriptions",
+          "value": 1720
+        },
+        {
+          "label": "standard procedures",
+          "value": 1615
+        },
+        {
+          "label": "case write-ups",
+          "value": 1180
+        },
+        {
+          "label": "everything else",
+          "value": 700
+        }
+      ]
+    }
+  },
+  "footer_note": "Built from your own Claude usage"
+}
+</script>
+
+<script>
+(function(){
+  var D = JSON.parse(document.getElementById('render-block').textContent);
+  function esc(s){var d=document.createElement('i');d.textContent=String(s);return d.innerHTML;}
+  function num(v){return Number(v).toLocaleString('en-US');}
+
+  document.getElementById('m-week').textContent = D.week_label;
+  document.getElementById('m-scope').textContent = D.scope_tag || '';
+  document.getElementById('foot-note').textContent = D.footer_note || '';
+  document.getElementById('verdict').innerHTML =
+    D.verdict.map(function(p){return '<p>'+esc(p)+'</p>';}).join('');
+  document.getElementById('m-stats').innerHTML = D.stats.map(function(s){
+    return '<div class="stat"><div class="v">'+esc(s.value)+'</div>'+
+           '<div class="k">'+esc(s.label)+'</div>'+
+           '<div class="s">'+esc(s.sub)+'</div></div>';
+  }).join('');
+  document.getElementById('m-verif').textContent = D.verifline;
+
+  (function(){
+    var T = D.trend, w=760, h=200, padL=50, padR=16, padT=20, padB=26;
+    var pts = T.series, xs = pts.length, innerW = w-padL-padR, innerH = h-padT-padB;
+    var max = Math.max.apply(null, pts.map(function(p){return p.value;}));
+    var step = max > 5000 ? 2500 : (max > 1000 ? 1000 : 100);
+    var ymax = Math.ceil(max/step)*step || step;
+    function X(i){return padL + innerW*(xs===1?0:i/(xs-1));}
+    function Y(v){return padT + innerH*(1 - v/ymax);}
+    function yl(v){return v>=1000 ? (v/1000)+'k' : String(v);}
+
+    var grid='', labels='';
+    [0, ymax/2, ymax].forEach(function(v){
+      grid += '<line x1="'+padL+'" y1="'+Y(v)+'" x2="'+(w-padR)+'" y2="'+Y(v)+'" stroke="#e3ded2" stroke-width="1"/>';
+      labels += '<text x="'+(padL-8)+'" y="'+(Y(v)+3.5)+'" text-anchor="end" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#5c6b70">'+yl(v)+'</text>';
+    });
+    pts.forEach(function(p,i){
+      labels += '<text x="'+X(i)+'" y="'+(h-8)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="'+(p.current?'#083c46':'#5c6b70')+'" font-weight="'+(p.current?'700':'400')+'">'+esc(p.label)+'</text>';
+    });
+
+    var solid='', dash='', prev=null;
+    pts.forEach(function(p,i){
+      var pt = X(i)+','+Y(p.value);
+      if(prev!==null){
+        var seg = 'M'+prev+' L'+pt;
+        if(p.partial || pts[i-1].partial){ dash += seg+' '; } else { solid += seg+' '; }
+      }
+      prev = pt;
+    });
+
+    var dots='';
+    pts.forEach(function(p,i){
+      if(p.current){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="5" fill="#083c46"/>'+
+                '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="8.5" fill="none" stroke="#0d7f95" stroke-width="1.5"/>'+
+                '<text x="'+(X(i)-10)+'" y="'+(Y(p.value)-12)+'" text-anchor="end" font-family="ui-monospace,Menlo,monospace" font-size="10" font-weight="700" fill="#083c46">'+num(p.value)+' last week</text>';
+      } else if(p.partial){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3.5" fill="#faf8f3" stroke="#5c6b70" stroke-width="1.4"/>';
+      } else {
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3" fill="#0d7f95"/>';
+      }
+    });
+
+    document.getElementById('chart-title').textContent = T.title;
+    document.getElementById('chart').innerHTML =
+      '<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(T.title)+'">'+grid+
+      '<path d="'+solid+'" fill="none" stroke="#0d7f95" stroke-width="2.2" stroke-linejoin="round"/>'+
+      '<path d="'+dash+'" fill="none" stroke="#5c6b70" stroke-width="1.6" stroke-dasharray="4 4"/>'+
+      dots+labels+'</svg>';
+    document.getElementById('chart-cap').textContent = T.caption;
+  })();
+
+  document.getElementById('moves').innerHTML = D.moves.map(function(m){
+    return '<div class="mv"><div class="row1"><span class="n">'+esc(m.rank)+'</span>'+
+      '<span class="t">'+esc(m.move)+'</span><span class="own">'+esc(m.owner)+'</span></div>'+
+      '<p class="stake">'+esc(m.at_stake)+'</p></div>';
+  }).join('');
+  document.getElementById('mv-note').textContent = D.moves_note;
+
+  document.getElementById('f-count').textContent = D.findings_count || '';
+  document.getElementById('f-sub').textContent = D.findings_sub;
+
+  /* How a finding moved since the previous run. Rendered from the ledger's own
+     status rather than recomputed here, so the report and the ledger cannot
+     disagree about whether something is new. */
+  var MOVEMENT_LABEL = {
+    "new": "New this week",
+    recurring: "Still here",
+    worsening: "Getting worse",
+    improving: "Getting better",
+    resolved: "Cleared"
+  };
+  function movementPill(f){
+    if(!f.status || !MOVEMENT_LABEL[f.status]){ return ''; }
+    return '<span class="mv-pill mv-'+esc(f.status)+'">'+esc(MOVEMENT_LABEL[f.status])+'</span>';
+  }
+  function movementNote(f){
+    return f.status_note ? '<p class="mv-since">'+esc(f.status_note)+'</p>' : '';
+  }
+
+  document.getElementById('findings').innerHTML = D.findings.map(function(f){
+    var held = f.waiting_on
+      ? '<div class="held"><b>We\'re waiting on:</b> '+esc(f.waiting_on)+'</div>' : '';
+    return '<article class="f">'+
+      (movementPill(f) ? '<div class="top"><span class="pills">'+movementPill(f)+'</span></div>' : '')+
+      '<h3>'+esc(f.headline)+'</h3>'+
+      '<p class="detail">'+esc(f.detail)+'</p>'+movementNote(f)+held+'</article>';
+  }).join('');
+
+  /* The per-team scoreboard. The verdict column carries a colour flag ahead of
+     a pipe so the data stays one flat string per cell. */
+  (function(){
+    var S = D.scoreboard;
+    document.getElementById('board-sub').textContent = D.scoreboard_sub || '';
+    document.getElementById('board-note').textContent = D.scoreboard_note || '';
+    if(!S){ return; }
+    var head = '<tr>'+S.head.map(function(h,i){
+      return '<th'+(i>0 && i<4 ? ' class="r"' : '')+'>'+esc(h)+'</th>';
+    }).join('')+'</tr>';
+    var body = S.rows.map(function(r){
+      return '<tr>'+r.map(function(cell,i){
+        if(i === r.length-1){
+          var bits = String(cell).split('|');
+          var flag = bits.length > 1 ? bits[0] : 'green';
+          var text = bits.length > 1 ? bits.slice(1).join('|') : cell;
+          return '<td><span class="flag flag--'+esc(flag)+'"></span>'+esc(text)+'</td>';
+        }
+        return '<td'+(i>0 && i<4 ? ' class="r"' : '')+'>'+esc(cell)+'</td>';
+      }).join('')+'</tr>';
+    }).join('');
+    document.getElementById('board').innerHTML =
+      '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  })();
+
+  document.getElementById('watch').innerHTML = D.watch.map(function(w){
+    return '<div class="w"><div class="l">'+esc(w.label)+'</div><div class="d">'+esc(w.detail)+'</div></div>';
+  }).join('');
+
+  document.getElementById('need').innerHTML =
+    D.need_from_you.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+  document.getElementById('howto').innerHTML =
+    D.how_to_read.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+})();
+</script>
+</body>
+</html>

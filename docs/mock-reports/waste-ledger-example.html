@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waste Ledger — what Claude cost, and what to do about it</title>
+<!--
+  100x CAIO · WASTE LEDGER · SELF-RENDERING TEMPLATE (RENDER_BLOCK v3)
+
+  This file renders itself from the JSON in the script tag near the bottom.
+  To produce a new edition, replace ONLY that JSON:
+
+      python3 -m pipeline.render.build --report waste --block <render.json> --out <file>.html
+
+  Do not hand-edit the markup, the styles, or the script. Everything a reader
+  sees comes from the data block, so two editions differ only where the data
+  differs. Prints to PDF from any browser.
+
+  Owner of this report: whoever owns the AI budget — usually finance.
+-->
+<style>
+  :root{
+    --paper:#faf8f3; --card:#ffffff; --ink:#0e1b20; --teal:#083c46; --muted:#5c6b70;
+    --cyan:#0d7f95; --orange:#c05e12; --red:#b3261e; --green:#1c7a4d; --amber-bg:#fdf6e7;
+    --line:#e3ded2; --verdict:#f2efe6;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+  .wrap{max-width:900px;margin:0 auto;padding:38px 28px 56px}
+
+  .mast{border-top:3px solid var(--teal);padding:16px 0 0}
+  .mast .brand{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .mast .brand b{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--teal)}
+  .mast .brand span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--muted)}
+  h1{font-size:33px;line-height:1.12;letter-spacing:-.012em;margin:12px 0 4px;font-weight:760}
+  .weeklabel{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--cyan);text-transform:uppercase}
+
+  .verdict{background:var(--verdict);border:1px solid var(--line);border-left:5px solid var(--teal);padding:18px 22px;margin:20px 0 0}
+  .verdict .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .verdict p{font-size:16.5px;line-height:1.6;margin-top:8px;font-weight:480}
+  .verdict p + p{margin-top:11px}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:16px 0 0}
+  .stat{background:var(--card);padding:13px 13px 11px}
+  .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .stat .v{font-size:21px;font-weight:760;letter-spacing:-.01em;margin-top:5px}
+  .stat .s{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  .proj{background:var(--card);border:1px solid var(--line);border-top:none;padding:12px 16px 14px}
+  .proj .projlabel{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--orange);text-transform:uppercase;font-weight:700}
+  .proj .projgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:9px}
+  .proj .pstat .pk{font-size:11.5px;color:var(--muted)}
+  .proj .pstat .pv{font-size:23px;font-weight:760;letter-spacing:-.01em;margin-top:3px}
+
+  .chartbox{background:var(--card);border:1px solid var(--line);border-top:none;padding:16px 16px 8px}
+  .chartbox .k{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--muted);text-transform:uppercase}
+  .chartbox svg{width:100%;height:auto;display:block;margin-top:6px}
+  .chartbox .cap{font-size:11px;color:var(--muted);padding:6px 2px 6px;line-height:1.5}
+  .mv-pill{font-family:var(--mono);font-size:8px;letter-spacing:.09em;padding:3px 8px;
+    border:1px solid;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv-new{color:#fff;background:var(--teal);border-color:var(--teal)}
+  .mv-worsening{color:#fff;background:var(--red);border-color:var(--red)}
+  .mv-improving{color:var(--green);border-color:var(--green)}
+  .mv-recurring{color:var(--muted);border-color:var(--muted)}
+  .mv-since{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45}
+  .verifline{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-top:none;border-left:3px solid var(--green);padding:8px 12px;background:var(--card);line-height:1.5}
+
+  .moves{margin-top:26px;background:var(--teal);color:#eef6f7;padding:20px 22px}
+  .moves .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#7fd6e4;text-transform:uppercase;font-weight:700}
+  .moves .total{float:right;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:#ffd9b3;text-transform:uppercase}
+  .mv{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.14);flex-wrap:wrap}
+  .mv:last-child{border-bottom:none;padding-bottom:2px}
+  .mv .n{font-family:var(--mono);font-size:12px;color:#7fd6e4;font-weight:700}
+  .mv .t{flex:1;font-size:15px;font-weight:600;min-width:200px}
+  .mv .amt{font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;color:#ffd9b3;white-space:nowrap}
+  .mv .own{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .moves .note{font-size:11px;color:rgba(238,246,247,.72);margin-top:11px;line-height:1.5}
+
+  .sect{margin:34px 0 0}
+  .sect>.shead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--teal);padding-bottom:6px;margin-bottom:14px}
+  .sect>.shead h2{font-size:13px;font-family:var(--mono);letter-spacing:.14em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .sect>.shead span{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+
+  .f{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);padding:17px 20px 15px;margin-bottom:13px;break-inside:avoid}
+  .f .top{display:flex;justify-content:flex-end;gap:14px;align-items:flex-start}
+  .f .pills{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;padding:3px 8px;border:1px solid;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .pill--new{color:var(--cyan);border-color:var(--cyan)}
+  .pill--flag{color:var(--orange);border-color:var(--orange)}
+  .f .grid{display:grid;grid-template-columns:1fr 168px;gap:18px;margin-top:9px}
+  .f h3{font-size:19.5px;line-height:1.28;font-weight:720;letter-spacing:-.005em}
+  .f .num{text-align:right}
+  .f .num .v{font-size:29px;font-weight:780;letter-spacing:-.02em;color:var(--teal)}
+  .f .num .u{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+  .f .sup{margin-top:11px}
+  .f .sup p{font-size:13.5px;color:#2b3a40;padding-left:14px;position:relative;margin-top:6px;line-height:1.55}
+  .f .sup p::before{content:"";position:absolute;left:0;top:9px;width:7px;height:1.5px;background:var(--cyan)}
+  .f .act{display:flex;gap:10px;align-items:baseline;margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap}
+  .f .act .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .f .act .txt{font-size:13.5px;font-weight:600;flex:1;min-width:220px}
+  .f .act .own{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--paper);background:var(--teal);padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .f .held{margin-top:9px;background:var(--amber-bg);border-left:3px solid var(--orange);padding:8px 12px;font-size:12px;color:#7a4a08;line-height:1.5}
+  .f .held b{text-transform:uppercase;letter-spacing:.04em;font-size:10.5px}
+
+  .watch{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .w{background:var(--card);border:1px solid var(--line);padding:11px 13px;break-inside:avoid}
+  .w .l{font-size:12.5px;color:var(--ink);font-weight:640}
+  .w .d{font-size:12.5px;color:#2b3a40;margin-top:4px;line-height:1.5}
+
+  .plainlist p{font-size:13.5px;color:#2b3a40;padding-left:15px;position:relative;margin-top:8px;line-height:1.55}
+  .plainlist.need p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--orange)}
+  .plainlist.read p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--muted)}
+
+  details.apxd{background:var(--card);border:1px solid var(--line);margin-bottom:10px}
+  details.apxd summary{cursor:pointer;padding:12px 16px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--teal);text-transform:uppercase;font-weight:700;list-style:none}
+  details.apxd summary::-webkit-details-marker{display:none}
+  details.apxd summary::after{content:"+";float:right;color:var(--muted)}
+  details.apxd[open] summary::after{content:"\2013"}
+  details.apxd .inner{padding:2px 16px 14px;border-top:1px solid var(--line)}
+  details.apxd .inner p{font-size:12.5px;color:#2b3a40;margin-top:8px;line-height:1.55}
+  details.apxd table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+  details.apxd th{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  details.apxd td{padding:6px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  details.apxd td.r,details.apxd th.r{text-align:right}
+
+  .foot{margin-top:40px;border-top:2px solid var(--teal);padding-top:14px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .foot span{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+
+  @media (max-width:680px){
+    .stats{grid-template-columns:1fr}
+    .proj .projgrid{grid-template-columns:1fr 1fr}
+    .f .grid{grid-template-columns:1fr}
+    .f .num{text-align:left}
+    .watch{grid-template-columns:1fr}
+    h1{font-size:26px}
+    .moves .total{float:none;display:block;margin-top:4px}
+  }
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    @page{margin:13mm}
+    .f,.w,.moves,.verdict{break-inside:avoid}
+    details.apxd summary::after{content:""}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brand"><b>100x CAIO &middot; WASTE LEDGER</b><span id="m-scope"></span></div>
+    <p class="weeklabel" id="m-week"></p>
+    <h1>Where the money went, and what to do about it.</h1>
+    <div class="verdict"><div class="k">The week in three sentences</div><div id="verdict"></div></div>
+    <div class="stats" id="m-stats"></div>
+    <div class="proj" id="m-proj"></div>
+    <div class="chartbox">
+      <div class="k" id="chart-title"></div>
+      <div id="chart"></div>
+      <div class="cap" id="chart-cap"></div>
+    </div>
+    <p class="verifline" id="m-verif"></p>
+  </header>
+
+  <section class="moves">
+    <span class="total" id="mv-total"></span>
+    <div class="k">What to do this week &mdash; most money at stake first</div>
+    <div id="moves"></div>
+    <p class="note" id="mv-note"></p>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we found</h2><span id="f-count"></span></div>
+    <div id="findings"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>Smaller things to keep an eye on</h2><span>Worth noting, not urgent</span></div>
+    <div class="watch" id="watch"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we need from you</h2><span>Each one sharpens a finding above</span></div>
+    <div class="plainlist need" id="need"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>How to read this report</h2><span></span></div>
+    <div class="plainlist read" id="howto"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>For whoever checks the numbers</h2><span>Definitions, model detail, the arithmetic</span></div>
+    <div id="appendix"></div>
+  </section>
+
+  <footer class="foot">
+    <span>100x CAIO &middot; Open source &middot; Runs on your systems &middot; Nothing uploaded</span>
+    <span id="foot-note"></span>
+  </footer>
+</div>
+
+<script type="application/json" id="render-block">
+{
+  "RENDER_BLOCK": "v3",
+  "report_kind": "waste",
+  "week_label": "Week of July 6–12, 2026",
+  "week_ending": "2026-07-12",
+  "scope_tag": "Example report · invented company · shareable edition",
+  "verdict": [
+    "Claude cost $2,325 last week, about 56% above the pace of the previous month, which works out to roughly $10,100 a month if it holds.",
+    "Most of that growth is healthy: about two-thirds of it is simply more people using it, from 54 to 71 in a week. The rest is each person costing more, because work has quietly moved onto the most expensive model available.",
+    "Two moves this week put roughly $350 a week back on the table, and that is before anyone opens the volume-discount conversation, which is worth considerably more."
+  ],
+  "stats": [
+    {
+      "label": "Total spend last week",
+      "value": "$2,325",
+      "sub": "56% above the previous month's weekly pace"
+    },
+    {
+      "label": "People who used Claude",
+      "value": "71 of 112",
+      "sub": "up from 54 the month before"
+    },
+    {
+      "label": "Cost per person who used it",
+      "value": "$32.74",
+      "sub": "up 19% — the model shift, not heavier use"
+    }
+  ],
+  "projection": {
+    "intro": "If last week's pace held:",
+    "per_month": "$10,100",
+    "per_month_per_user": "$141.88",
+    "per_year": "$121k"
+  },
+  "trend": {
+    "title": "What Claude cost each week",
+    "series": [
+      {
+        "label": "Apr 6",
+        "value": 48,
+        "partial": true
+      },
+      {
+        "label": "Apr 13",
+        "value": 69
+      },
+      {
+        "label": "Apr 20",
+        "value": 139
+      },
+      {
+        "label": "Apr 27",
+        "value": 140
+      },
+      {
+        "label": "May 4",
+        "value": 576
+      },
+      {
+        "label": "May 11",
+        "value": 417
+      },
+      {
+        "label": "May 18",
+        "value": 1024
+      },
+      {
+        "label": "May 25",
+        "value": 1158
+      },
+      {
+        "label": "Jun 1",
+        "value": 984
+      },
+      {
+        "label": "Jun 8",
+        "value": 1786
+      },
+      {
+        "label": "Jun 15",
+        "value": 2039
+      },
+      {
+        "label": "Jul 6",
+        "value": 2325,
+        "current": true
+      },
+      {
+        "label": "Jul 13",
+        "value": 1392,
+        "partial": true
+      }
+    ],
+    "caption": "Hollow points are part-weeks — the history starts mid-week and the current week is still running, so neither is a fair comparison. The ringed point is the week this report covers."
+  },
+  "verifline": "Every figure here was recomputed from the source data by a second, independent pass, and the per-person amounts add back to the company total to the cent. Nothing in this report is an estimate drawn from surface statistics.",
+  "moves": {
+    "total_label": "About $350 a week on the table",
+    "items": [
+      {
+        "n": 1,
+        "text": "Review the single heaviest coding account with its team, and agree when that work should use the flagship model rather than a cheaper one.",
+        "amount": "$233/wk above that account's own recent average",
+        "owner": "Head of AI"
+      },
+      {
+        "n": 2,
+        "text": "Take the renewal conversation. The company is paying list price while 26 seats sit unused.",
+        "amount": "$120/wk in seats, plus about $232/wk for every 10 points of discount",
+        "owner": "Procurement and IT"
+      }
+    ],
+    "note": "Ranked by money at stake. These are verified upper bounds on what is recoverable, not promised savings, and the discount upside depends on how the negotiation goes."
+  },
+  "findings_count": "4 findings · none dropped in review",
+  "findings": [
+    {
+      "headline": "One account's coding work is a fifth of the entire company's AI bill.",
+      "the_number": {
+        "value": "$463",
+        "unit": "in one week, one account"
+      },
+      "support": [
+        "A single account ran up 19.9% of last week's spend, all of it in Claude Code, the coding tool — roughly 1,364 lines of code across 19 sessions — and has effectively been the only user of that tool for the past month.",
+        "That week ran at double the account's own recent average, almost entirely on the most expensive model available.",
+        "This is a governance gap rather than a criticism of the person: a fifth of the company's spend flows through one account with no review and no agreed rule for when the flagship model is worth its price. A review may well conclude the output justifies it."
+      ],
+      "action": {
+        "text": "Review this account with its team and agree when coding work should use the flagship model.",
+        "owner": "Head of AI"
+      },
+      "status": "NEW",
+      "tags": [
+        "CAN STILL CHANGE"
+      ],
+      "appendix": "Model detail"
+    },
+    {
+      "headline": "The bill quietly moved onto the priciest model, so the saving the old numbers showed was not real.",
+      "the_number": {
+        "value": "71.6%",
+        "unit": "of spend on top-price models"
+      },
+      "support": [
+        "The way spend was previously counted made it look as though expensive-model use had fallen by a fifth. It had not. The work moved onto a newer flagship model that the old counting did not recognise, and which costs about twice as much per use as the one it replaced.",
+        "Counted correctly, the share of spend on top-tier models barely moved: from 75.5% to 71.6%.",
+        "That one model alone cost $607 last week — 26% of all spend from under 5% of the activity, at about $0.79 per use against $0.07 for the standard model."
+      ],
+      "action": {
+        "text": "Adopt the corrected definition everywhere it is tracked, and publish a rule for when the flagship tier is warranted.",
+        "owner": "Head of AI and platform owner"
+      },
+      "status": "NEW",
+      "tags": [
+        "CAN STILL CHANGE"
+      ],
+      "appendix": "Model detail"
+    },
+    {
+      "headline": "Spend ran half again above trend — mostly because more people are using it.",
+      "the_number": {
+        "value": "$2,325",
+        "unit": "in the week, up 56%"
+      },
+      "support": [
+        "About two-thirds of the increase is more people: those using Claude in a week grew from 54 to 71. The rest is each person costing about 19% more, which is the model shift described above.",
+        "At this pace the annual bill is around $121k. That is arithmetic on one week, not a forecast."
+      ],
+      "action": {
+        "text": "Set the weekly budget line now, and confirm it once the vendor's restatement window closes.",
+        "owner": "Head of AI and finance"
+      },
+      "status": "NEW",
+      "tags": [
+        "CAN STILL CHANGE"
+      ],
+      "held": "The vendor can revise last week's figures for about a month; worth re-checking in mid-August.",
+      "appendix": "How the growth splits"
+    },
+    {
+      "headline": "The company pays list price while 26 of 112 seats sit unused.",
+      "the_number": {
+        "value": "26",
+        "unit": "idle seats out of 112"
+      },
+      "support": [
+        "The effective discount across the whole history is 0.04%. The company is paying list price on a bill growing by half again month over month, which is negotiating leverage going unused.",
+        "26 seats have had no activity for 30 days. 17 were never used at all, and 11 of those were provisioned more than a month ago. Three invitations are still outstanding."
+      ],
+      "action": {
+        "text": "Open the volume-discount conversation and run a seat clear-out before the next billing cycle.",
+        "owner": "Procurement and IT"
+      },
+      "status": "NEW",
+      "tags": [
+        "CAN STILL CHANGE"
+      ],
+      "held": "Seat amounts use the published list price until someone provides the contracted rate.",
+      "appendix": "Seats and discount"
+    }
+  ],
+  "watch": [
+    {
+      "label": "The standard model gets 50% more expensive at the end of August",
+      "detail": "One of the models used most rises 50% per unit. At last week's mix that is roughly $240 a week on a $481 line — the largest known pressure ahead."
+    },
+    {
+      "label": "A cluster of accounts spiked",
+      "detail": "18 accounts ran at three times or more their own recent average, $600 combined. These are middle-of-the-pack users, not the top spenders. Watching whether the same accounts repeat."
+    },
+    {
+      "label": "The desktop assistant is growing fastest",
+      "detail": "$288 across 10 accounts, more than double the prior month. The top two accounts are 80% of it."
+    },
+    {
+      "label": "Some accounts went quiet",
+      "detail": "20 accounts spent money in the baseline month and nothing at all last week. Folded into the seat review."
+    },
+    {
+      "label": "Caching is working well",
+      "detail": "94% of input was served from cache, up from 92.5%. Genuinely good; no action needed."
+    },
+    {
+      "label": "The design and document surfaces are shrinking",
+      "detail": "Both down sharply on small amounts. Not worth acting on yet."
+    }
+  ],
+  "need_from_you": [
+    "The contracted seat price. Every seat figure above uses the published list price until we have it.",
+    "Confirmation from procurement about whether any discount is applied at invoice level rather than against usage.",
+    "A view from people operations on the 11 seats that were provisioned more than a month ago and never used.",
+    "An administrator key, so the heaviest account's spend can be broken down by tool rather than inferred."
+  ],
+  "how_to_read": [
+    "\"Last week\" means Monday 6 July to Sunday 12 July. \"The month before\" is the four complete weeks before that, averaged to a weekly figure so the comparison is fair.",
+    "Money figures are what the vendor billed, after discount. Where a figure is a bound rather than a settled amount, it says so.",
+    "The vendor can still revise recent figures for about a month, so treat last week's numbers as close to final rather than final. This report is re-checked after that window closes.",
+    "Every headline was recomputed a second time, independently, before it was written down. Where the two passes disagreed, the disagreement was chased to its cause before anything was published.",
+    "Our own analysis work is excluded from these numbers, so the report never counts itself.",
+    "Individuals are described by role and by what happened, not by name. Where a group is smaller than five people, it is described as \"fewer than five\" rather than counted, because in a company this size a precise small number identifies people."
+  ],
+  "reconciliation": {
+    "week_total_by_model": {
+      "total": 2325,
+      "parts": [
+        {
+          "label": "flagship model",
+          "value": 607
+        },
+        {
+          "label": "high-capability model",
+          "value": 964
+        },
+        {
+          "label": "standard model",
+          "value": 481
+        },
+        {
+          "label": "superseded models",
+          "value": 272
+        },
+        {
+          "label": "lightweight model",
+          "value": 1
+        }
+      ],
+      "explained": "Rounded to the nearest dollar for the reader; the underlying figures reconcile to the cent."
+    }
+  },
+  "appendix": [
+    {
+      "title": "Model detail",
+      "table": {
+        "head": [
+          "Model",
+          "Spend",
+          "Share",
+          "Uses",
+          "Cost per use"
+        ],
+        "rows": [
+          [
+            "High-capability (previous flagship)",
+            "$964.11",
+            "41.5%",
+            "5,686",
+            "$0.17"
+          ],
+          [
+            "Flagship (newest, most expensive)",
+            "$606.62",
+            "26.1%",
+            "766",
+            "$0.79"
+          ],
+          [
+            "Standard",
+            "$480.56",
+            "20.7%",
+            "6,811",
+            "$0.07"
+          ],
+          [
+            "Superseded models (three)",
+            "$272.38",
+            "11.7%",
+            "1,527",
+            "$0.18"
+          ],
+          [
+            "Lightweight",
+            "$0.94",
+            "0.0%",
+            "1,391",
+            "$0.00"
+          ]
+        ]
+      },
+      "notes": [
+        "\"Superseded\" means a newer model exists in the same family at the same or better price. All three run entirely in chat, where the choice belongs to the person, not to an administrator — which is why this is context rather than a finding with an action attached.",
+        "The flagship model costs about twice the previous one per unit. Counting only the older family made it look as though premium use had fallen by nearly 19 points; counting both correctly shows a fall of under 4."
+      ]
+    },
+    {
+      "title": "How the growth splits",
+      "notes": [
+        "Spend rose 55.9%. That decomposes into 35.1% more requests and 15.3% more cost per request.",
+        "The rise in requests is itself 31.5% more people and 2.8% more requests per person, so the growth is breadth rather than intensity.",
+        "In proportional terms, more people explains about 62% of the increase and higher cost per person about 38%.",
+        "Cost per person who used Claude in a week: $27.62 in the baseline month, $32.74 last week."
+      ]
+    },
+    {
+      "title": "Seats and discount",
+      "notes": [
+        "26 of 112 seats had no activity in 30 days. 17 have never been used, 11 of those provisioned over a month ago.",
+        "Effective discount across all history is 0.04%, which is indistinguishable from paying list price.",
+        "Each 10 points of negotiated discount is worth roughly $232 a week at the current run rate."
+      ]
+    },
+    {
+      "title": "Caveats that travel with every number",
+      "notes": [
+        "The vendor can revise recent figures for about a month. Every figure for last week is re-checked once that window closes.",
+        "Work done through administrative interfaces never appears in this data at all, so it is neither counted nor claimed.",
+        "The newest model generation counts roughly 30% more units for the same text than the previous one, so unit counts should never be read across generations as a measure of how much work was done.",
+        "This report names no individuals and quotes no message content."
+      ]
+    }
+  ],
+  "footer_note": "Built from your own Claude usage"
+}
+</script>
+
+<script>
+(function(){
+  var D = JSON.parse(document.getElementById('render-block').textContent);
+  function esc(s){var d=document.createElement('i');d.textContent=String(s);return d.innerHTML;}
+  function num(v){return Number(v).toLocaleString('en-US');}
+
+  document.getElementById('m-week').textContent = D.week_label;
+  document.getElementById('m-scope').textContent = D.scope_tag || '';
+  document.getElementById('foot-note').textContent = D.footer_note || '';
+  document.getElementById('verdict').innerHTML =
+    D.verdict.map(function(p){return '<p>'+esc(p)+'</p>';}).join('');
+
+  document.getElementById('m-stats').innerHTML = D.stats.map(function(s){
+    return '<div class="stat"><div class="k">'+esc(s.label)+'</div>'+
+           '<div class="v">'+esc(s.value)+'</div>'+
+           '<div class="s">'+esc(s.sub)+'</div></div>';
+  }).join('');
+
+  var PJ = D.projection;
+  document.getElementById('m-proj').innerHTML = !PJ ? '' :
+    '<div class="projlabel">'+esc(PJ.intro)+'</div><div class="projgrid">'+
+    '<div class="pstat"><div class="pk">Per month</div><div class="pv">'+esc(PJ.per_month)+'</div></div>'+
+    '<div class="pstat"><div class="pk">Per person, per month</div><div class="pv">'+esc(PJ.per_month_per_user)+'</div></div>'+
+    '<div class="pstat"><div class="pk">Per year</div><div class="pv">'+esc(PJ.per_year)+'</div></div></div>';
+
+  document.getElementById('m-verif').textContent = D.verifline;
+
+  /* One chart. Part-weeks are drawn hollow and joined with a dashed line so a
+     reader cannot mistake an incomplete week for a real drop. */
+  (function(){
+    var T = D.trend, w=760, h=200, padL=52, padR=16, padT=18, padB=26;
+    var pts = T.series, xs = pts.length, innerW = w-padL-padR, innerH = h-padT-padB;
+    var max = Math.max.apply(null, pts.map(function(p){return p.value;}));
+    var step = max > 5000 ? 2500 : (max > 1000 ? 1000 : 100);
+    var ymax = Math.ceil(max/step)*step || step;
+    function X(i){return padL + innerW*(xs===1?0:i/(xs-1));}
+    function Y(v){return padT + innerH*(1 - v/ymax);}
+    function yl(v){return v>=1000 ? '$'+(v/1000)+'k' : '$'+v;}
+
+    var grid='', labels='';
+    [0, ymax/2, ymax].forEach(function(v){
+      grid += '<line x1="'+padL+'" y1="'+Y(v)+'" x2="'+(w-padR)+'" y2="'+Y(v)+'" stroke="#e3ded2" stroke-width="1"/>';
+      labels += '<text x="'+(padL-8)+'" y="'+(Y(v)+3.5)+'" text-anchor="end" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#5c6b70">'+yl(v)+'</text>';
+    });
+    pts.forEach(function(p,i){
+      if(i%3===1 || p.current){
+        labels += '<text x="'+X(i)+'" y="'+(h-8)+'" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="8.5" fill="'+(p.current?'#083c46':'#5c6b70')+'" font-weight="'+(p.current?'700':'400')+'">'+esc(p.label)+'</text>';
+      }
+    });
+
+    var solid='', dash='', prev=null;
+    pts.forEach(function(p,i){
+      var pt = X(i)+','+Y(p.value);
+      if(prev!==null){
+        var seg = 'M'+prev+' L'+pt;
+        if(p.partial || pts[i-1].partial){ dash += seg+' '; } else { solid += seg+' '; }
+      }
+      prev = pt;
+    });
+
+    var dots='';
+    pts.forEach(function(p,i){
+      if(p.current){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="5" fill="#083c46"/>'+
+                '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="8.5" fill="none" stroke="#0d7f95" stroke-width="1.5"/>'+
+                '<text x="'+(X(i)-10)+'" y="'+(Y(p.value)-12)+'" text-anchor="end" font-family="ui-monospace,Menlo,monospace" font-size="10" font-weight="700" fill="#083c46">$'+num(p.value)+'</text>';
+      } else if(p.partial){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3.5" fill="#faf8f3" stroke="#5c6b70" stroke-width="1.4"/>';
+      } else {
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3" fill="#0d7f95"/>';
+      }
+    });
+
+    document.getElementById('chart-title').textContent = T.title;
+    document.getElementById('chart').innerHTML =
+      '<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(T.title)+'">'+grid+
+      '<path d="'+solid+'" fill="none" stroke="#0d7f95" stroke-width="2.2" stroke-linejoin="round"/>'+
+      '<path d="'+dash+'" fill="none" stroke="#5c6b70" stroke-width="1.6" stroke-dasharray="4 4"/>'+
+      dots+labels+'</svg>';
+    document.getElementById('chart-cap').textContent = T.caption;
+  })();
+
+  var M = D.moves;
+  document.getElementById('mv-total').textContent = M.total_label || '';
+  document.getElementById('moves').innerHTML = M.items.map(function(m){
+    return '<div class="mv"><span class="n">'+esc(m.n)+'</span><span class="t">'+esc(m.text)+'</span>'+
+           '<span class="amt">'+esc(m.amount)+'</span><span class="own">'+esc(m.owner)+'</span></div>';
+  }).join('');
+  document.getElementById('mv-note').textContent = M.note || '';
+
+  document.getElementById('f-count').textContent = D.findings_count || '';
+  document.getElementById('findings').innerHTML = D.findings.map(function(f){
+    var pills = '<span class="pill pill--new">'+esc(f.status)+'</span>'+
+      (f.tags||[]).map(function(t){return '<span class="pill pill--flag">'+esc(t)+'</span>';}).join('');
+    var held = '';
+    if(f.held){
+      var items = Array.isArray(f.held) ? f.held : [f.held];
+      held = '<div class="held"><b>We\'re waiting on:</b> '+items.map(esc).join(' &middot; ')+'</div>';
+    }
+    return '<article class="f">'+
+      '<div class="top"><span class="pills">'+pills+'</span></div>'+
+      '<div class="grid"><h3>'+esc(f.headline)+'</h3>'+
+      '<div class="num"><div class="v">'+esc(f.the_number.value)+'</div>'+
+      '<div class="u">'+esc(f.the_number.unit)+'</div></div></div>'+
+      '<div class="sup">'+f.support.map(function(s){return '<p>'+esc(s)+'</p>';}).join('')+'</div>'+
+      '<div class="act"><span class="lbl">Do this</span><span class="txt">'+esc(f.action.text)+'</span>'+
+      '<span class="own">'+esc(f.action.owner)+'</span></div>'+held+'</article>';
+  }).join('');
+
+  document.getElementById('watch').innerHTML = D.watch.map(function(w){
+    return '<div class="w"><div class="l">'+esc(w.label)+'</div><div class="d">'+esc(w.detail)+'</div></div>';
+  }).join('');
+
+  document.getElementById('need').innerHTML =
+    D.need_from_you.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+  document.getElementById('howto').innerHTML =
+    D.how_to_read.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+
+  document.getElementById('appendix').innerHTML = (D.appendix||[]).map(function(a){
+    var table = '';
+    if(a.table){
+      table = '<table><thead><tr>'+a.table.head.map(function(th,i){
+        return '<th'+(i>0?' class="r"':'')+'>'+esc(th)+'</th>';
+      }).join('')+'</tr></thead><tbody>'+a.table.rows.map(function(r){
+        return '<tr>'+r.map(function(c,i){
+          return '<td'+(i>0?' class="r"':'')+'>'+esc(c)+'</td>';
+        }).join('')+'</tr>';
+      }).join('')+'</tbody></table>';
+    }
+    var notes = (a.notes||[]).map(function(n){return '<p>'+esc(n)+'</p>';}).join('');
+    return '<details class="apxd"><summary>'+esc(a.title)+'</summary><div class="inner">'+table+notes+'</div></details>';
+  }).join('');
+
+  window.addEventListener('beforeprint', function(){
+    document.querySelectorAll('details.apxd').forEach(function(d){ d.setAttribute('open',''); });
+  });
+})();
+</script>
+</body>
+</html>

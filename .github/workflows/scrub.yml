@@ -1,0 +1,60 @@
+name: scrub
+
+# The publication gate. Nothing reaches main carrying a real organization's
+# people, domains, or credentials. See tools/scrubber/scrub.py --explain.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scrub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan tracked files for real-org data
+        run: python3 tools/scrubber/scrub.py
+
+      - name: Confirm no lake was ever committed
+        run: |
+          # A lake holds an organization's real usage and chat content. It is
+          # git-ignored, but an ignore rule is a convention and this is a check.
+          #
+          # Checked by SHAPE rather than by name: a lake lives wherever
+          # --data-dir pointed, so looking only for a directory called `data`
+          # missed every lake anyone named anything else — including
+          # `data-demo`, which the README itself tells people to use.
+          fail=0
+          for marker in '_state.json' 'payload_index.csv' 'candidates.jsonl' \
+                        'verdicts.jsonl' 'verifications.jsonl' 'part.jsonl' \
+                        'snapshot.jsonl' 'exclusion_list.json'; do
+            tracked=$(git ls-files "**/$marker" "$marker" | \
+                      grep -v '^plugins/100x-caio/pipeline/demo/' || true)
+            if [ -n "$tracked" ]; then
+              echo "::error::a lake is tracked — found $marker at: $tracked"
+              fail=1
+            fi
+          done
+          if git ls-files --error-unmatch data 2>/dev/null; then
+            echo "::error::data/ is tracked. The lake must never be committed."
+            fail=1
+          fi
+          [ "$fail" = "0" ] || exit 1
+          for pattern in '_reports/*' 'raw/*' '*.jsonl'; do
+            tracked=$(git ls-files "$pattern" | grep -v '^plugins/100x-caio/pipeline/demo/' || true)
+            if [ -n "$tracked" ]; then
+              echo "::error::pipeline output is tracked: $tracked"
+              exit 1
+            fi
+          done
+          echo "No lake artifacts tracked."

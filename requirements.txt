@@ -1,0 +1,8 @@
+# Runtime dependencies for the 100x CAIO pipeline.
+#
+# Deliberately small. The lake's write side, the raw store, the gap check, and
+# the render/validate gates are stdlib-only, so the parts that must run in a
+# constrained environment have nothing to install.
+
+requests>=2.31       # the only HTTP client; used by the fetch layer
+pandas>=2.0          # the analysis read side (pipeline.lake.lake_read)

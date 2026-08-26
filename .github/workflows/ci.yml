@@ -1,0 +1,114 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        # Installed exactly the way the README tells a user to install it, so a
+        # broken package or a missing template fails here rather than on
+        # somebody's first afternoon with it.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Unit tests
+        run: python -m pytest -q
+
+      - name: The commands the README promises
+        # Every documented command, run as documented. The first version of
+        # this README shipped a quick-start whose first line did not work.
+        run: |
+          caio --help
+          caio welcome
+          caio demo --out /tmp/readme-lake --chats 120
+          caio check --data-dir /tmp/readme-lake
+          caio scan --data-dir /tmp/readme-lake
+          caio judge --data-dir /tmp/readme-lake --limit 0
+          caio verify --data-dir /tmp/readme-lake
+          caio all --data-dir /tmp/readme-lake --out-dir /tmp/readme-reports \
+                   --read --limit 0 \
+                   --deliver --deliver-dir /tmp/readme-deliveries --to "CI"
+          test -f /tmp/readme-deliveries/*/CHECKSUMS.txt
+
+      - name: A report built by the stand-in says so
+        # The one thing that must never be quietly true: a report whose verdicts
+        # nobody read presenting itself as a reading.
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, "plugins/100x-caio")
+          from pipeline.render.validate import extract_block
+          html = next(Path("/tmp/readme-reports").glob("exposure-report-*.html")).read_text()
+          block, _ = extract_block(html)
+          assert "stand-in" in block["verifline"], block["verifline"]
+          print("ok: the report names the stand-in")
+          PY
+
+      - name: The post-install greeting, run the way the hook runs it
+        # Nothing is installed from the hook's point of view and PYTHONPATH is
+        # empty, which is the situation it exists for. It must speak once, stay
+        # quiet after that, and never exit non-zero.
+        run: |
+          export CLAUDE_PLUGIN_ROOT="$PWD/plugins/100x-caio"
+          export CLAUDE_PLUGIN_DATA="$(mktemp -d)"
+          hook="$CLAUDE_PLUGIN_ROOT/hooks/session_start.py"
+          echo '{"session_start_reason":"startup"}' | python3 "$hook" > /tmp/first.json
+          python3 -c "import json;d=json.load(open('/tmp/first.json'));assert d['systemMessage'];assert 'three reports' in d['hookSpecificOutput']['additionalContext']"
+          echo '{"session_start_reason":"startup"}' | python3 "$hook" > /tmp/second.json
+          test ! -s /tmp/second.json
+          echo "ok: greets once, then stays quiet"
+        env:
+          PYTHONPATH: ""
+
+      - name: End-to-end on the synthetic lake, without installing
+        # The strongest signal this project can produce in CI: build a fake
+        # org's lake from scratch, run all three reports over it, and validate
+        # the rendered HTML against the same gates a real report must pass.
+        # If a contributor breaks the pipeline, this fails without anyone
+        # needing Enterprise credentials.
+        run: |
+          python3 -m pipeline.cli demo --out /tmp/demo-lake --seed 20260819
+          python3 -m pipeline.cli all --data-dir /tmp/demo-lake --out-dir /tmp/demo-reports
+        env:
+          PYTHONPATH: plugins/100x-caio
+
+      - name: Validate rendered reports
+        run: |
+          for f in /tmp/demo-reports/*.html; do
+            python3 -m pipeline.render.validate "$f"
+          done
+        env:
+          PYTHONPATH: plugins/100x-caio
+
+  plugin-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate plugin and marketplace manifests
+        # Marketplace publication rejects a malformed manifest, and a broken
+        # skill frontmatter silently stops a skill from ever loading.
+        run: python3 tools/check_manifests.py

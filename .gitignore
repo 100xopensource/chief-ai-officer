@@ -1,0 +1,62 @@
+# ---- the data lake: never committed, ever ----
+#
+# Ignored by SHAPE, not just by name. A lake lives wherever --data-dir points,
+# and the README itself tells people to use `data-demo` — which the old
+# name-only rule did not cover, so a `git add -A` after the documented quick
+# start would have staged one.
+data/
+data-*/
+!data/.gitkeep
+
+# The files a lake is made of, wherever it is put.
+**/_state.json
+**/_summary/
+**/_reports/
+**/raw/
+*.jsonl
+!plugins/100x-caio/pipeline/demo/**/*.jsonl
+_reports/
+raw/
+
+# ---- review worksheets: the one artifact carrying raw conversation text ----
+*-worksheet.md
+review-worksheet.md
+verify-worksheet.md
+
+# ---- packaged deliverables: real reports, ready to send ----
+deliveries/
+
+# ---- rendered reports built from real org data ----
+# Only the synthetic mock reports under docs/mock-reports/ are tracked.
+*-report-*.html
+!docs/mock-reports/*.html
+waste-ledger-*.html
+value-xray-*.html
+exposure-report-*.html
+!docs/mock-reports/*
+
+# ---- credentials ----
+.env
+.env.*
+*.key
+cost_config.json
+!**/cost_config.example.json
+.claude/settings.local.json
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+# Build output. `pip install -e .` writes these, and a `git add -A` after
+# an editable install swept a whole stale copy of the package into a commit.
+build/
+dist/
+*.whl
+
+# ---- os ----
+.DS_Store
+Thumbs.db

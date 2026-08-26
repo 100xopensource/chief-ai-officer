@@ -1,0 +1,42 @@
+# Scrubber allowlist — exact strings permitted despite matching a rule.
+#
+# Every entry here is a reviewed decision. Adding a line means "this string is
+# safe to publish, and here is why". Do not add a customer domain, a person's
+# email, or a live credential under any justification.
+#
+# Format: one exact string per line. Anything after # is a comment.
+
+# --- Infrastructure and documentation hosts referenced in prose and URLs ---
+anthropic.com               # the vendor whose APIs this tool reads
+claude.com                  # product documentation links
+claude.ai                   # product documentation links
+code.claude.com             # Claude Code documentation
+docs.claude.com             # API documentation
+github.com                  # repository and issue links
+apache.org                  # the licence text
+jsdelivr.net                # the CDN the report templates load Chart.js from
+cdn.jsdelivr.net            # same, fully qualified
+100xteam.ai                 # the maintaining organization, published deliberately
+schema.org                  # structured-data vocabulary in report markup
+python.org                  # the official Python download page, linked from the README
+www.python.org              # same, fully qualified
+
+# --- Published contact addresses ---
+# A reviewed decision: this is the address the project asks people to report
+# vulnerabilities to. It is a role address, not a person, and it is published
+# deliberately in SECURITY.md. No other email address belongs in this file.
+security@100xteam.ai        # the security contact in SECURITY.md
+
+# --- Test fixtures that are placeholders by construction ---
+# The judge has to be tested against the canonical placeholder, because
+# recognising it as a placeholder is the behaviour under test. The string is
+# not a secret; it is the word REDACTED.
+password=REDACTED           # test fixture in tests/test_reading_passes.py
+
+# --- Python packaging and tooling names that look like domains ---
+requirements.txt
+pyproject.toml
+setup.py
+package.json
+marketplace.json
+plugin.json

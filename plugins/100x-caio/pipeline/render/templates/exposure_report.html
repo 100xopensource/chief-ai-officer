@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exposure Report — sensitive data in your AI conversations</title>
+<!--
+  100x CAIO · EXPOSURE REPORT · SELF-RENDERING TEMPLATE (RENDER_BLOCK v3)
+
+  This file renders itself from the JSON in the script tag near the bottom.
+  To produce a new edition, replace ONLY that JSON:
+
+      python3 -m pipeline.render.build --report exposure --block <render.json> --out <file>.html
+
+  Do not hand-edit the markup, the styles, or the script.
+
+  Owner of this report: compliance, or whoever answers for data handling.
+
+  This report differs from the other two in three ways, and the design reflects
+  each of them:
+
+    · Findings carry a SEVERITY and a CONFIDENCE. "Confirmed" means somebody
+      read the actual material; "candidate" means a machine matched a pattern
+      and nobody has checked yet. Presenting the second as the first is the
+      fastest way to lose a reader's trust permanently.
+    · Every count is a FLOOR, never an estimate. It says so, in the reader's
+      words, in more than one place.
+    · The surface split is a headline, not a detail. Where sensitive data
+      arrives determines what you actually do about it.
+-->
+<style>
+  :root{
+    --paper:#faf8f3; --card:#ffffff; --ink:#0e1b20; --teal:#083c46; --muted:#5c6b70;
+    --cyan:#0d7f95; --orange:#c05e12; --red:#b3261e; --green:#1c7a4d;
+    --amber-bg:#fdf6e7; --red-bg:#fdf0ee; --line:#e3ded2; --verdict:#f2efe6;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.6}
+  .wrap{max-width:880px;margin:0 auto;padding:38px 28px 56px}
+
+  .mast{border-top:3px solid var(--teal);padding:16px 0 0}
+  .mast .brand{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .mast .brand b{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--teal);text-transform:uppercase}
+  .mast .brand span{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  h1{font-size:32px;line-height:1.14;letter-spacing:-.01em;margin:12px 0 2px;font-weight:750}
+  .weeklabel{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--cyan);text-transform:uppercase}
+
+  .verdict{background:var(--verdict);border:1px solid var(--line);border-left:5px solid var(--teal);padding:18px 22px;margin:20px 0 0}
+  .verdict .k{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .verdict p{font-size:16.5px;line-height:1.62;margin-top:9px}
+  .verdict p + p{margin-top:11px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:18px 0 0}
+  .stat{background:var(--card);padding:13px 13px 12px}
+  .stat .v{font-size:22px;font-weight:760;letter-spacing:-.01em}
+  .stat .k{font-size:11.5px;color:var(--ink);margin-top:5px;font-weight:600;line-height:1.3}
+  .stat .s{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  /* Where sensitive material arrives. Its own block because it is the finding
+     that changes what a reader does, not a supporting detail. */
+  .surfaces{background:var(--card);border:1px solid var(--line);border-top:none;padding:16px 18px 14px}
+  .surfaces .k{font-size:12px;font-weight:640;color:var(--ink)}
+  .surfaces .sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .bar{display:flex;height:26px;margin-top:12px;border:1px solid var(--line);overflow:hidden}
+  .bar div{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:.04em;min-width:0}
+  .seg1{background:var(--teal)} .seg2{background:var(--cyan)} .seg3{background:#7fb2bf} .seg4{background:#c6d6da;color:#0e1b20!important}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+  .legend div{font-size:11.5px;color:#2b3a40;display:flex;align-items:center;gap:6px}
+  .swatch{width:10px;height:10px;flex:none}
+
+  .trendbox{background:var(--card);border:1px solid var(--line);border-top:none;padding:15px 18px 8px}
+  .trendbox .k{font-size:12px;font-weight:640;color:var(--ink)}
+  .trendbox svg{width:100%;height:auto;display:block;margin-top:8px}
+  .trendbox .cap{font-size:11px;color:var(--muted);padding:4px 0 8px;line-height:1.5}
+  .mv-pill{font-family:var(--mono);font-size:8px;letter-spacing:.09em;padding:3px 8px;
+    border:1px solid;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv-new{color:#fff;background:var(--teal);border-color:var(--teal)}
+  .mv-worsening{color:#fff;background:var(--red);border-color:var(--red)}
+  .mv-improving{color:var(--green);border-color:var(--green)}
+  .mv-recurring{color:var(--muted);border-color:var(--muted)}
+  .mv-since{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45}
+  .verifline{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-top:none;border-left:3px solid var(--green);padding:8px 12px;background:var(--card);line-height:1.5}
+
+  .moves{margin-top:26px;background:var(--teal);color:#eef6f7;padding:20px 22px}
+  .moves .k{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:#7fd6e4;text-transform:uppercase;font-weight:700}
+  .mv{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.14)}
+  .mv:last-child{border-bottom:none;padding-bottom:2px}
+  .mv .row1{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .mv .n{font-family:var(--mono);font-size:13px;color:#7fd6e4;font-weight:700}
+  .mv .t{flex:1;font-size:15.5px;font-weight:640;min-width:200px}
+  .mv .own{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv .when{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;background:#c05e12;padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .mv .stake{margin:6px 0 0 27px;font-size:13px;color:rgba(238,246,247,.9);line-height:1.5}
+  .moves .note{font-size:11px;color:rgba(238,246,247,.72);margin-top:12px;line-height:1.5}
+
+  .sect{margin:34px 0 0}
+  .sect>.shead{border-bottom:2px solid var(--teal);padding-bottom:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .sect>.shead h2{font-size:13px;font-family:var(--mono);letter-spacing:.13em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .sect>.shead span{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .sect .subline{font-size:12.5px;color:var(--muted);margin:8px 0 14px;line-height:1.55}
+
+  .f{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--muted);padding:16px 20px 15px;margin-bottom:12px;break-inside:avoid}
+  .f.sev--high{border-left-color:var(--red)}
+  .f.sev--internal{border-left-color:var(--orange)}
+  .f.sev--low{border-left-color:var(--cyan)}
+  .f .top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .f .pills{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;padding:3px 8px;border:1px solid;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .pill--high{color:#fff;background:var(--red);border-color:var(--red)}
+  .pill--internal{color:#fff;background:var(--orange);border-color:var(--orange)}
+  .pill--low{color:var(--cyan);border-color:var(--cyan)}
+  .pill--confirmed{color:var(--green);border-color:var(--green)}
+  .pill--candidate{color:var(--muted);border-color:var(--muted)}
+  .pill--blocked{color:var(--orange);border-color:var(--orange)}
+  .f .count{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;white-space:nowrap}
+  .f h3{font-size:19px;line-height:1.3;font-weight:720;letter-spacing:-.005em;margin-top:9px}
+  .f .detail{font-size:14px;color:#2b3a40;margin-top:8px;line-height:1.6}
+  .f .act{display:flex;gap:10px;align-items:baseline;margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap}
+  .f .act .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--teal);text-transform:uppercase;font-weight:700}
+  .f .act .txt{font-size:13.5px;font-weight:600;flex:1;min-width:220px}
+  .f .act .own{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--paper);background:var(--teal);padding:3px 9px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+  .f .note{margin-top:9px;background:var(--amber-bg);border-left:3px solid var(--orange);padding:8px 12px;font-size:12px;color:#7a4a08;line-height:1.5}
+  .f .note b{text-transform:uppercase;letter-spacing:.04em;font-size:10.5px}
+
+  .safeguards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .sg{background:var(--card);border:1px solid var(--line);padding:12px 14px}
+  .sg .n{font-size:13px;font-weight:640}
+  .sg .st{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-top:5px;display:inline-block;padding:2px 8px;border-radius:20px;border:1px solid}
+  .st--on{color:var(--green);border-color:var(--green)}
+  .st--off{color:var(--red);border-color:var(--red)}
+  .st--unknown{color:var(--muted);border-color:var(--muted)}
+  .sg .d{font-size:12px;color:#2b3a40;margin-top:7px;line-height:1.5}
+
+  .plainlist p{font-size:13.5px;color:#2b3a40;padding-left:15px;position:relative;margin-top:8px;line-height:1.55}
+  .plainlist.need p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--orange)}
+  .plainlist.read p::before{content:"";position:absolute;left:0;top:9px;width:8px;height:1.5px;background:var(--muted)}
+
+  .mathcard{background:var(--card);border:1px solid var(--line);padding:14px 16px}
+  .mathcard .k{font-size:12px;font-weight:640}
+  .mathcard table{width:100%;border-collapse:collapse;margin-top:9px;font-size:12.5px}
+  .mathcard td{padding:5px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .mathcard td.r{text-align:right}
+  .mathcard tr:last-child td{border-bottom:none;font-weight:700}
+  .mathcard .note{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5}
+
+  .foot{margin-top:40px;border-top:2px solid var(--teal);padding-top:14px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .foot span{font-family:var(--mono);font-size:9px;letter-spacing:.09em;color:var(--muted);text-transform:uppercase}
+
+  @media (max-width:680px){
+    .stats{grid-template-columns:1fr 1fr}
+    .safeguards{grid-template-columns:1fr}
+    h1{font-size:25px}
+  }
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    @page{margin:13mm}
+    .f,.sg,.moves,.verdict,.mathcard{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brand"><b>100x CAIO &middot; Exposure Report</b><span id="m-scope"></span></div>
+    <p class="weeklabel" id="m-week"></p>
+    <h1>What sensitive information reached your AI &mdash; and how it got there.</h1>
+    <div class="verdict"><div class="k">The bottom line</div><div id="verdict"></div></div>
+    <div class="stats" id="m-stats"></div>
+    <div class="surfaces">
+      <div class="k" id="surf-title"></div>
+      <div class="sub" id="surf-sub"></div>
+      <div class="bar" id="surf-bar"></div>
+      <div class="legend" id="surf-legend"></div>
+    </div>
+    <div class="trendbox" id="trendbox" hidden>
+      <div class="k" id="trend-title"></div>
+      <div id="trend"></div>
+      <div class="cap" id="trend-cap"></div>
+    </div>
+    <p class="verifline" id="m-verif"></p>
+  </header>
+
+  <section class="moves">
+    <div class="k">What to do &mdash; most urgent first</div>
+    <div id="moves"></div>
+    <p class="note" id="mv-note"></p>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we found</h2><span id="f-count"></span></div>
+    <p class="subline" id="f-sub"></p>
+    <div id="findings"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>Your safety settings</h2><span id="sg-note"></span></div>
+    <p class="subline" id="sg-sub"></p>
+    <div class="safeguards" id="safeguards"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>The maths, checked</h2><span>So the numbers can be argued with</span></div>
+    <p class="subline" id="math-sub"></p>
+    <div class="mathcard" id="mathcard"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>What we need from you</h2><span></span></div>
+    <div class="plainlist need" id="need"></div>
+  </section>
+
+  <section class="sect">
+    <div class="shead"><h2>How to read this report</h2><span></span></div>
+    <div class="plainlist read" id="howto"></div>
+  </section>
+
+  <footer class="foot">
+    <span>100x CAIO &middot; Open source &middot; Runs on your systems &middot; Nothing uploaded</span>
+    <span id="foot-note"></span>
+  </footer>
+</div>
+
+<script type="application/json" id="render-block">
+{
+  "RENDER_BLOCK": "v3",
+  "report_kind": "exposure",
+  "week_label": "Week of July 6–12, 2026",
+  "week_ending": "2026-07-12",
+  "scope_tag": "Example report · invented company · shareable edition",
+  "verdict": [
+    "Sensitive information is reaching your AI conversations, and it is overwhelmingly arriving from your own systems rather than being typed in by people. Roughly nineteen in twenty confirmed items came back inside a tool's response.",
+    "The single largest pattern is one internal data connection putting live access links into the results it returns. Those links work, they sit in conversation history, and fixing the connection stops the whole category at once — which makes this the one item worth doing this week.",
+    "Every count below is a floor: the minimum we could confirm by reading the actual material. The true number is higher, and we say where and why."
+  ],
+  "stats": [
+    {
+      "value": "at least 38",
+      "label": "People with at least one confirmed sensitive item",
+      "sub": "out of 94 who used it in the period — a floor, not a share"
+    },
+    {
+      "value": "612",
+      "label": "Confirmed sensitive items",
+      "sub": "each one read and judged, not pattern-matched"
+    },
+    {
+      "value": "77%",
+      "label": "Arrived through a tool's response",
+      "sub": "not typed by a person"
+    },
+    {
+      "value": "33%",
+      "label": "Of spending we cannot see into at all",
+      "sub": "the coding tool and desktop assistant report cost but not content"
+    }
+  ],
+  "surfaces": {
+    "title": "Where the sensitive material actually came from",
+    "sub": "This is the finding that decides what you do. If people were typing secrets in, the answer would be training. They are not — your systems are handing it over — so the answer is fixing connections.",
+    "segments": [
+      {
+        "label": "Returned by a tool",
+        "value": 77
+      },
+      {
+        "label": "Sent to a tool",
+        "value": 18
+      },
+      {
+        "label": "Typed by a person",
+        "value": 4
+      },
+      {
+        "label": "Attached files",
+        "value": 1
+      }
+    ]
+  },
+  "trend": {
+    "title": "Sensitive-data matches, by week",
+    "unit": "matches",
+    "series": [
+      {
+        "label": "May 4",
+        "value": 164
+      },
+      {
+        "label": "May 11",
+        "value": 181
+      },
+      {
+        "label": "May 18",
+        "value": 292
+      },
+      {
+        "label": "May 25",
+        "value": 217
+      },
+      {
+        "label": "Jun 1",
+        "value": 233
+      },
+      {
+        "label": "Jun 8",
+        "value": 230
+      },
+      {
+        "label": "Jun 15",
+        "value": 239
+      },
+      {
+        "label": "Jun 22",
+        "value": 185
+      },
+      {
+        "label": "Jun 29",
+        "value": 184
+      },
+      {
+        "label": "Jul 6",
+        "value": 242,
+        "current": true
+      },
+      {
+        "label": "Jul 13",
+        "value": 96,
+        "partial": true
+      }
+    ],
+    "caption": "Each point counts pattern matches in one complete week — candidates, not confirmed findings. The marked point is the week this report covers; the hollow point is the week in progress and is not complete. Counts are floors: results cut off at the source cannot be seen past the cut."
+  },
+  "verifline": "Nothing here is a pattern match. Every item counted was read and judged against a written rubric, and a second, independent pass re-checked a separate sample to try to break the conclusions. About 44% of what the machine flagged survived that reading — which is why unread matches are never reported as findings.",
+  "moves": [
+    {
+      "rank": 1,
+      "move": "Fix the internal data connection that puts live access links into the results it returns.",
+      "owner": "Platform and security",
+      "when": "This week",
+      "at_stake": "One change closes the largest category in this report. The links were live when captured, they remain in conversation history, and no amount of user training prevents a system from handing them over."
+    },
+    {
+      "rank": 2,
+      "move": "Turn on conversation retention limits and content redaction.",
+      "owner": "IT administration",
+      "when": "This week",
+      "at_stake": "Both are currently off. Retention limits shrink how long anything sensitive stays recoverable; redaction stops some of it being stored at all. Neither requires a project."
+    },
+    {
+      "rank": 3,
+      "move": "Identify the connections operating under unrecognisable names.",
+      "owner": "IT administration",
+      "when": "This month",
+      "at_stake": "Fewer than five connections are in regular use that cannot be resolved to a product or an owner. They may be entirely legitimate; nobody can currently say."
+    }
+  ],
+  "moves_note": "Ordered by how much risk one action removes, not by how alarming the finding sounds.",
+  "findings_count": "6 findings",
+  "findings_sub": "Each carries how serious it is and how certain we are. \"Confirmed\" means a person read the actual material and judged it. \"Candidate\" means a pattern matched and nobody has checked yet — those are shown separately and deliberately not counted in the headline.",
+  "findings": [
+    {
+      "severity": "high",
+      "confidence": "confirmed",
+      "count_label": "412 items",
+      "headline": "An internal data connection returns live access links inside its results.",
+      "detail": "The company's own analytics connection includes a signed access link in the results it hands back. Those links were live at the moment they were captured and they now sit in conversation history. They are time-limited access links rather than passwords or long-term keys, and that distinction matters — the fix is different, and overstating what they are would be its own kind of error. This is the single biggest and most systemic item in the report, and it is entirely within your control: it is a change to how one connection formats its output.",
+      "action": {
+        "text": "Stop the connection putting access links in returned results, and expire anything still live.",
+        "owner": "Platform and security"
+      },
+      "status": "worsening",
+      "status_note": "Seen in 4 runs in a row, and moving the wrong way."
+    },
+    {
+      "severity": "high",
+      "confidence": "confirmed",
+      "count_label": "94 items",
+      "headline": "Commercially sensitive material appears in conversations, mostly pasted from documents.",
+      "detail": "Confirmed material relating to transactions, financing terms, and board matters. Unlike the item above, this genuinely is people bringing information to the AI to work on, which is a reasonable thing to want to do. The question for you is not whether it happened but whether the retention and redaction settings are appropriate for it — and at present both are off. This category is noisy under automated scanning: roughly two in five flagged items survived reading, which is why only the read-confirmed ones are counted here.",
+      "action": {
+        "text": "Decide whether current retention settings are appropriate for material of this kind.",
+        "owner": "Compliance"
+      },
+      "status": "recurring",
+      "status_note": "Seen in 3 runs in a row, at about the same level."
+    },
+    {
+      "severity": "high",
+      "confidence": "confirmed",
+      "count_label": "31 items",
+      "headline": "Records identifying named individuals came back from business systems.",
+      "detail": "Customer and employee records containing enough detail to identify specific people, returned by connected systems in response to ordinary queries. Nobody did anything unusual to produce this; a person asked a normal question and a system answered with more than was needed. The practical control is what those connections are permitted to return, not what people are permitted to ask.",
+      "action": {
+        "text": "Review what the connected systems return by default, and narrow the fields where practical.",
+        "owner": "Platform and data owners"
+      },
+      "note": "Where records include medical detail relating to named individuals, this report describes them exactly that way. It does not use regulatory terms, because whether those regimes apply to your organisation is a determination for your counsel and not for a scanning tool.",
+      "status": "new",
+      "status_note": "New this week."
+    },
+    {
+      "severity": "internal",
+      "confidence": "confirmed",
+      "count_label": "58 items",
+      "headline": "Internal-only documents were pasted in for summarising and drafting.",
+      "detail": "Confidential internal material — planning documents, draft policies, one item covered by legal privilege. This is ordinary work and the finding is not that people did something wrong. It is that this material now lives in conversation history under settings that were never chosen with it in mind.",
+      "action": {
+        "text": "Fold this into the retention decision above rather than treating it separately.",
+        "owner": "Compliance"
+      },
+      "status": "recurring",
+      "status_note": "Seen in 6 runs in a row, at about the same level."
+    },
+    {
+      "severity": "low",
+      "confidence": "candidate",
+      "count_label": "16 conversations",
+      "headline": "Some conversations export with no content at all.",
+      "detail": "They carry a title but no messages. The most likely explanation is how deleted conversations are handled on export. It is flagged as a candidate rather than a finding because nobody has yet confirmed the cause, and it matters mainly as a question about whether your export is complete — which is worth knowing before you rely on one for anything that counts.",
+      "action": {
+        "text": "Confirm with the vendor how deleted conversations appear in a compliance export.",
+        "owner": "IT administration"
+      },
+      "status": "improving",
+      "status_note": "Seen in 5 runs in a row, and moving the right way."
+    },
+    {
+      "severity": "low",
+      "confidence": "candidate",
+      "count_label": "fewer than five connections",
+      "headline": "Some connections in regular use cannot be resolved to a name or an owner.",
+      "detail": "They appear under identifiers rather than product names, and the busiest of them accounts for a substantial number of sessions. They may be entirely legitimate internal tools. The finding is that nobody can currently say which, and a connection nobody can name is a connection nobody is reviewing.",
+      "action": {
+        "text": "Resolve each one to a product and an owner from the administration console.",
+        "owner": "IT administration"
+      },
+      "status": "recurring",
+      "status_note": "Seen in 2 runs in a row, at about the same level."
+    }
+  ],
+  "safeguards_sub": "Four settings do most of the work here. They are read from your administration console rather than inferred, and where we could not read one, this report says so instead of guessing.",
+  "safeguards_note": "As last verified",
+  "safeguards": [
+    {
+      "name": "Conversation retention limit",
+      "state": "off",
+      "detail": "Nothing expires. Everything found in this report stays recoverable indefinitely, including the live access links."
+    },
+    {
+      "name": "Content redaction",
+      "state": "off",
+      "detail": "Sensitive values are stored as they arrive. Turning this on stops some of this category being retained at all."
+    },
+    {
+      "name": "Sector-specific controls",
+      "state": "unknown",
+      "detail": "Could not be read this cycle. Needs an administrator key or somebody to check the console."
+    },
+    {
+      "name": "Single sign-on",
+      "state": "off",
+      "detail": "Accounts are not tied to your identity system, so access is not removed automatically when somebody leaves."
+    }
+  ],
+  "math_sub": "Where a headline number differs from the individual figures, the difference is explained here rather than left for a reader to find.",
+  "reconciliation": {
+    "confirmed_items_by_severity": {
+      "total": 612,
+      "parts": [
+        {
+          "label": "Highest severity",
+          "value": 537
+        },
+        {
+          "label": "Internal-confidential",
+          "value": 58
+        },
+        {
+          "label": "Lower severity",
+          "value": 17
+        }
+      ],
+      "explained": "The three severity groups sum to the headline exactly. The two candidate findings are deliberately excluded from this total, because nobody has read them yet."
+    }
+  },
+  "math_notes": [
+    "\"At least 38 of 94\" counts people with at least one confirmed item of the highest severity. Counting attached files as well would make it 39; the lower figure is published, and this is why.",
+    "About 26% of the material the machine flagged was read, strongest candidates first, and reading stopped once the count stopped moving. Every figure is therefore a floor.",
+    "Roughly one in eight confirmed items sits in a response that the source cut off at about 10,000 characters. Whatever followed the cut was never captured and cannot be counted.",
+    "Error responses were scanned separately — 1,213 of them — and produced no confirmed findings at all. That is a published result, not an omission."
+  ],
+  "need_from_you": [
+    "Whether your organisation is subject to sector-specific data regulation. Until that is answered, this report deliberately avoids regulatory language and describes what was found in plain terms.",
+    "An administrator key, or somebody to read the four settings above from the console, so the safety settings section stops carrying an unknown.",
+    "A retention decision: how long conversation history should be kept before it expires.",
+    "Confirmation of which connections are approved, so the unresolvable ones can be separated from the legitimate ones."
+  ],
+  "how_to_read": [
+    "\"Last week\" means Monday 6 July to Sunday 12 July.",
+    "Every count is a floor — the minimum we could confirm by reading. It is never an estimate and never an extrapolation. The real number is higher.",
+    "\"Confirmed\" means a person read the actual material and judged it against a written rubric. \"Candidate\" means a pattern matched and nobody has checked yet. The two are never added together.",
+    "This report contains no names, no email addresses, no filenames, and no quoted material. Where a group is smaller than five people it is described as \"fewer than five\", because in an organisation this size a precise small number identifies individuals.",
+    "Nothing found here was tested. No link was opened and no credential was tried. Whether something is live is judged from where it appears, never by using it.",
+    "About a third of spending runs through the coding tool and the desktop assistant, which report what they cost but not what was done. This report covers what it can see and does not speculate about the rest.",
+    "Some responses were cut off at about 10,000 characters by the source system. Anything past that point was never captured by anyone.",
+    "Our own analysis work is excluded from these numbers."
+  ],
+  "footer_note": "Built from your own Claude usage"
+}
+</script>
+
+<script>
+(function(){
+  var D = JSON.parse(document.getElementById('render-block').textContent);
+  function esc(s){var d=document.createElement('i');d.textContent=String(s);return d.innerHTML;}
+
+  document.getElementById('m-week').textContent = D.week_label;
+  document.getElementById('m-scope').textContent = D.scope_tag || '';
+  document.getElementById('foot-note').textContent = D.footer_note || '';
+  document.getElementById('verdict').innerHTML =
+    D.verdict.map(function(p){return '<p>'+esc(p)+'</p>';}).join('');
+  document.getElementById('m-stats').innerHTML = D.stats.map(function(s){
+    return '<div class="stat"><div class="v">'+esc(s.value)+'</div>'+
+           '<div class="k">'+esc(s.label)+'</div>'+
+           '<div class="s">'+esc(s.sub)+'</div></div>';
+  }).join('');
+
+  /* Surface split. Segments narrower than a readable width still get their
+     colour in the bar, but their label moves to the legend rather than being
+     squeezed into an unreadable sliver. */
+  (function(){
+    var S = D.surfaces;
+    if(!S){ return; }
+    document.getElementById('surf-title').textContent = S.title;
+    document.getElementById('surf-sub').textContent = S.sub;
+    var total = S.segments.reduce(function(a,s){ return a + s.value; }, 0) || 1;
+    document.getElementById('surf-bar').innerHTML = S.segments.map(function(s,i){
+      var pct = s.value / total * 100;
+      var label = pct >= 12 ? esc(s.value + '%') : '';
+      return '<div class="seg'+(i+1)+'" style="width:'+pct+'%">'+label+'</div>';
+    }).join('');
+    var colours = ['#083c46', '#0d7f95', '#7fb2bf', '#c6d6da'];
+    document.getElementById('surf-legend').innerHTML = S.segments.map(function(s,i){
+      return '<div><span class="swatch" style="background:'+colours[i % colours.length]+'"></span>'+
+             esc(s.label)+' &middot; '+esc(s.value)+'%</div>';
+    }).join('');
+  })();
+
+  document.getElementById('m-verif').textContent = D.verifline;
+
+  /* The ten-week line. A single week is a number; ten weeks is a direction, and
+     a reader who can see the direction argues about the right thing.
+
+     Two rules the drawing enforces, both paid for by a report that broke them:
+       · A partial week is never drawn as though it were complete. It gets a
+         hollow point and a dashed approach, because a part-week plotted solid
+         next to full ones always reads as a collapse.
+       · The reported week is marked and labelled, so "this point is the one the
+         report is about" needs no caption to establish. */
+  (function(){
+    var T = D.trend;
+    if(!T || !T.series || !T.series.length){ return; }
+    document.getElementById('trendbox').hidden = false;
+
+    var pts = T.series, w = 760, h = 200, padL = 52, padR = 18, padT = 22, padB = 26;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var unit = T.unit || '';
+
+    function fmt(v){
+      if(unit === 'usd'){
+        return '$' + Math.round(v).toLocaleString('en-US');
+      }
+      return Number(v).toLocaleString('en-US');
+    }
+    function X(i){ return padL + innerW * (pts.length === 1 ? 0 : i / (pts.length - 1)); }
+
+    var max = Math.max.apply(null, pts.map(function(p){ return p.value; })) || 1;
+    var mag = Math.pow(10, Math.floor(Math.log(max) / Math.LN10));
+    var step = Math.ceil(max / (2 * mag)) * mag;
+    var ymax = Math.max(step * 2, max);
+    function Y(v){ return padT + innerH * (1 - v / ymax); }
+
+    var grid = '', labels = '';
+    [0, ymax / 2, ymax].forEach(function(v){
+      grid += '<line x1="'+padL+'" y1="'+Y(v)+'" x2="'+(w-padR)+'" y2="'+Y(v)+
+              '" stroke="#e3ded2" stroke-width="1"/>';
+      labels += '<text x="'+(padL-8)+'" y="'+(Y(v)+3.5)+'" text-anchor="end" '+
+                'font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#5c6b70">'+
+                esc(fmt(v))+'</text>';
+    });
+    pts.forEach(function(p,i){
+      labels += '<text x="'+X(i)+'" y="'+(h-7)+'" text-anchor="middle" '+
+                'font-family="ui-monospace,Menlo,monospace" font-size="8.5" fill="'+
+                (p.current ? '#083c46' : '#5c6b70')+'" font-weight="'+
+                (p.current ? '700' : '400')+'">'+esc(p.label)+'</text>';
+    });
+
+    var solid = '', dashed = '', prev = null;
+    pts.forEach(function(p,i){
+      var here = X(i)+','+Y(p.value);
+      if(prev !== null){
+        var seg = 'M'+prev+' L'+here+' ';
+        if(p.partial || pts[i-1].partial){ dashed += seg; } else { solid += seg; }
+      }
+      prev = here;
+    });
+
+    var dots = '';
+    pts.forEach(function(p,i){
+      if(p.current){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="5" fill="#083c46"/>'+
+                '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="8.5" fill="none" '+
+                'stroke="#0d7f95" stroke-width="1.5"/>'+
+                '<text x="'+(X(i)-11)+'" y="'+(Y(p.value)-12)+'" text-anchor="end" '+
+                'font-family="ui-monospace,Menlo,monospace" font-size="10" font-weight="700" '+
+                'fill="#083c46">'+esc(fmt(p.value))+' this week</text>';
+      } else if(p.partial){
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3.5" fill="#faf8f3" '+
+                'stroke="#5c6b70" stroke-width="1.4"/>';
+      } else {
+        dots += '<circle cx="'+X(i)+'" cy="'+Y(p.value)+'" r="3" fill="#0d7f95"/>';
+      }
+    });
+
+    var described = pts.map(function(p){ return p.label+': '+fmt(p.value); }).join(', ');
+    document.getElementById('trend-title').textContent = T.title;
+    document.getElementById('trend').innerHTML =
+      '<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(T.title)+'. '+esc(described)+'">'+
+      '<title>'+esc(T.title)+'</title><desc>'+esc(described)+'</desc>'+ grid +
+      '<path d="'+solid+'" fill="none" stroke="#0d7f95" stroke-width="2.2" stroke-linejoin="round"/>'+
+      '<path d="'+dashed+'" fill="none" stroke="#5c6b70" stroke-width="1.6" stroke-dasharray="4 4"/>'+
+      dots + labels + '</svg>';
+    document.getElementById('trend-cap').textContent = T.caption || '';
+  })();
+
+  document.getElementById('moves').innerHTML = D.moves.map(function(m){
+    var when = m.when ? '<span class="when">'+esc(m.when)+'</span>' : '';
+    return '<div class="mv"><div class="row1"><span class="n">'+esc(m.rank)+'</span>'+
+      '<span class="t">'+esc(m.move)+'</span>'+when+
+      '<span class="own">'+esc(m.owner)+'</span></div>'+
+      '<p class="stake">'+esc(m.at_stake)+'</p></div>';
+  }).join('');
+  document.getElementById('mv-note').textContent = D.moves_note || '';
+
+  document.getElementById('f-count').textContent = D.findings_count || '';
+  document.getElementById('f-sub').textContent = D.findings_sub || '';
+
+
+  /* How a finding moved since the previous run. Rendered from the ledger's own
+     status rather than recomputed here, so the report and the ledger cannot
+     disagree about whether something is new. */
+  var MOVEMENT_LABEL = {
+    "new": "New this week",
+    recurring: "Still here",
+    worsening: "Getting worse",
+    improving: "Getting better",
+    resolved: "Cleared"
+  };
+  function movementPill(f){
+    if(!f.status || !MOVEMENT_LABEL[f.status]){ return ''; }
+    return '<span class="mv-pill mv-'+esc(f.status)+'">'+esc(MOVEMENT_LABEL[f.status])+'</span>';
+  }
+  function movementNote(f){
+    return f.status_note ? '<p class="mv-since">'+esc(f.status_note)+'</p>' : '';
+  }
+
+  var SEVERITY_LABEL = { high: 'Most serious', internal: 'Internal only', low: 'Lower risk' };
+  document.getElementById('findings').innerHTML = D.findings.map(function(f){
+    var sev = f.severity || 'low';
+    var pills =
+      '<span class="pill pill--'+esc(sev)+'">'+esc(SEVERITY_LABEL[sev] || sev)+'</span>'+
+      '<span class="pill pill--'+esc(f.confidence)+'">'+esc(f.confidence)+'</span>'+
+      movementPill(f);
+    var note = f.note ? '<div class="note"><b>Worth knowing:</b> '+esc(f.note)+'</div>' : '';
+    var act = f.action
+      ? '<div class="act"><span class="lbl">Do this</span>'+
+        '<span class="txt">'+esc(f.action.text)+'</span>'+
+        '<span class="own">'+esc(f.action.owner)+'</span></div>'
+      : '';
+    return '<article class="f sev--'+esc(sev)+'">'+
+      '<div class="top"><span class="pills">'+pills+'</span>'+
+      '<span class="count">'+esc(f.count_label || '')+'</span></div>'+
+      '<h3>'+esc(f.headline)+'</h3>'+
+      '<p class="detail">'+esc(f.detail)+'</p>'+movementNote(f)+act+note+'</article>';
+  }).join('');
+
+  document.getElementById('sg-sub').textContent = D.safeguards_sub || '';
+  document.getElementById('sg-note').textContent = D.safeguards_note || '';
+  var STATE_LABEL = { on: 'On', off: 'Off', unknown: 'Not verified this cycle' };
+  document.getElementById('safeguards').innerHTML = (D.safeguards||[]).map(function(s){
+    return '<div class="sg"><div class="n">'+esc(s.name)+'</div>'+
+      '<span class="st st--'+esc(s.state)+'">'+esc(STATE_LABEL[s.state] || s.state)+'</span>'+
+      '<div class="d">'+esc(s.detail)+'</div></div>';
+  }).join('');
+
+  /* The reconciliation, rendered for the reader rather than kept in a file
+     they never see. A headline that cannot be checked is a headline that gets
+     argued about instead of acted on. */
+  (function(){
+    document.getElementById('math-sub').textContent = D.math_sub || '';
+    var R = D.reconciliation || {};
+    var key = Object.keys(R)[0];
+    var html = '';
+    if(key){
+      var spec = R[key];
+      html += '<div class="k">Confirmed items, by how serious they are</div><table><tbody>';
+      html += spec.parts.map(function(p){
+        return '<tr><td>'+esc(p.label)+'</td><td class="r">'+esc(p.value)+'</td></tr>';
+      }).join('');
+      html += '<tr><td>Total</td><td class="r">'+esc(spec.total)+'</td></tr></tbody></table>';
+      if(spec.explained){ html += '<p class="note">'+esc(spec.explained)+'</p>'; }
+    }
+    html += (D.math_notes||[]).map(function(n){
+      return '<p class="note">'+esc(n)+'</p>';
+    }).join('');
+    document.getElementById('mathcard').innerHTML = html;
+  })();
+
+  document.getElementById('need').innerHTML =
+    D.need_from_you.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+  document.getElementById('howto').innerHTML =
+    D.how_to_read.map(function(s){return '<p>'+esc(s)+'</p>';}).join('');
+})();
+</script>
+</body>
+</html>

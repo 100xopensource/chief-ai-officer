@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "100x-caio"
+version = "2.0.0"
+description = "Read your organisation's own Claude usage and produce three executive reports. Runs locally; nothing is uploaded."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "100x", email = "security@100xteam.ai" }]
+keywords = ["reporting", "governance", "compliance", "cost", "usage-analytics"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Security",
+]
+
+# Deliberately small. The lake's write side, the gap check, the metrics and the
+# render gates are standard library only, so the parts that must run in a
+# constrained environment have nothing to install.
+dependencies = [
+    "requests>=2.31",   # the only HTTP client; used by the fetch layer
+    "pandas>=2.0",      # the analysis read side (pipeline.lake.lake_read)
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/100xopensource/chief-ai-officer-plugin"
+Source = "https://github.com/100xopensource/chief-ai-officer-plugin"
+
+# One command, so nobody has to know where the package lives on disk.
+[project.scripts]
+caio = "pipeline.cli:main"
+
+# The pipeline lives inside the plugin directory, because the plugin is the
+# primary way this is distributed. Installing it makes `caio` and `import
+# pipeline` work from anywhere, which is what removes PYTHONPATH from every
+# instruction in the documentation.
+[tool.setuptools]
+package-dir = { "" = "plugins/100x-caio" }
+
+[tool.setuptools.packages.find]
+where = ["plugins/100x-caio"]
+include = ["pipeline*"]
+
+# The report templates are the product. Without them an installed copy builds
+# nothing, and the failure appears only at render time.
+[tool.setuptools.package-data]
+"pipeline.render" = ["templates/*.html"]
