@@ -48,8 +48,8 @@ if so, use `python` everywhere below too.
 ### Step 2 — Download this project
 
 ```bash
-git clone https://github.com/100xopensource/chief-ai-officer-plugin.git
-cd chief-ai-officer-plugin
+git clone https://github.com/100xopensource/chief-ai-officer.git
+cd chief-ai-officer
 ```
 
 No `git`? Click the green **Code** button at the top of this page → **Download
@@ -120,7 +120,7 @@ Copy, paste, fill in the blanks:
 
 > Hi — I'm setting up internal cost and governance reporting on our Claude
 > Enterprise account, using an open-source tool that runs entirely on my machine
-> and doesn't send our data anywhere ([link](https://github.com/100xopensource/chief-ai-officer-plugin)).
+> and doesn't send our data anywhere ([link](https://github.com/100xopensource/chief-ai-officer)).
 >
 > Could you create and send me:
 >
@@ -373,7 +373,7 @@ If your team uses Claude Code, you can install this as a plugin and just ask for
 things in plain English instead of typing commands.
 
 ```
-/plugin marketplace add 100xopensource/chief-ai-officer-plugin
+/plugin marketplace add 100xopensource/chief-ai-officer
 /plugin install 100x-chief-ai-officer@100x-chief-ai-officer
 ```
 
@@ -408,7 +408,7 @@ Five skills become available:
 | `caio check` says a report can't be built | Some required data is missing | The output names exactly which data. Usually it's the compliance pull you haven't run. |
 
 Still stuck? Open an issue at
-[github.com/100xopensource/chief-ai-officer-plugin/issues](https://github.com/100xopensource/chief-ai-officer-plugin/issues).
+[github.com/100xopensource/chief-ai-officer/issues](https://github.com/100xopensource/chief-ai-officer/issues).
 Please don't paste real report content or API keys into an issue.
 
 ---

@@ -12,7 +12,7 @@ with a `caio` command; the skills are what make it usable from Claude.
 
 ```mermaid
 graph TD
-    REPO["<b>100xopensource/chief-ai-officer-plugin</b><br/>Apache-2.0"]
+    REPO["<b>100xopensource/chief-ai-officer</b><br/>Apache-2.0"]
 
     REPO --> MKT[".claude-plugin/marketplace.json<br/><i>makes the repo installable</i>"]
     REPO --> PLUGIN["plugins/100x-chief-ai-officer/"]

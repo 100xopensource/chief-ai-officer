@@ -43,7 +43,7 @@ from typing import Any
 
 JsonObject = dict[str, Any]
 
-REPO_URL = "https://github.com/100xopensource/chief-ai-officer-plugin"
+REPO_URL = "https://github.com/100xopensource/chief-ai-officer"
 EXAMPLES_URL = f"{REPO_URL}/tree/main/docs/mock-reports"
 
 # Where a checkout keeps things, relative to the repository root.

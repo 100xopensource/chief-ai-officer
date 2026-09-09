@@ -6,8 +6,8 @@
     "name": "100x",
     "url": "https://100xteam.ai"
   },
-  "homepage": "https://github.com/100xopensource/chief-ai-officer-plugin",
-  "repository": "https://github.com/100xopensource/chief-ai-officer-plugin",
+  "homepage": "https://github.com/100xopensource/chief-ai-officer",
+  "repository": "https://github.com/100xopensource/chief-ai-officer",
   "license": "Apache-2.0",
   "keywords": [
     "reporting",
