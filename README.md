@@ -177,28 +177,45 @@ runs it for you.
 
 | Say something like | What happens |
 |---|---|
-| "Set this up" / "Is my setup right?" | Checks what's installed, what data you have, and which reports it can build |
-| "Show me an example report" | Invents a fictional company and builds all three |
-| "Build this week's reports" | Pulls what's new and writes the three reports |
-| "Package the exposure report for Legal" | A folder ready to send, with a cover note and checksums |
-| "Help me review these flagged passages" | Walks you through judging what the scan found |
-| "Where did this number come from?" | Explains a figure in plain language, down to the source |
+| 🩺 &nbsp;"Set this up" / "Is my setup right?" | Checks what's installed, what data you have, and which reports it can build |
+| 📄 &nbsp;"Show me an example report" | Invents a fictional company and builds all three |
+| 📊 &nbsp;"Build this week's reports" | Pulls what's new and writes the three reports |
+| 📦 &nbsp;"Package the exposure report for Legal" | A folder ready to send, with a cover note and checksums |
+| 🔍 &nbsp;"Help me review these flagged passages" | Walks you through judging what the scan found |
+| 🧾 &nbsp;"Where did this number come from?" | Explains a figure in plain language, down to the source |
 
-## Two things only you can tell it
+## Where your data goes
 
-Some facts about your organisation aren't in the data and never will be. Which
-accounts are service accounts rather than people. Which bare identifier is
-actually Salesforce. Say so once — *"these three user IDs are service accounts,
-not people"* — and every report from then on honours it.
+Nowhere you didn't send it. Your usage records come from Anthropic's own API to a
+folder you chose, the analysis happens there, and the reports are written next to
+it. There is no telemetry, no phone-home, and no 100x server anywhere in the path.
 
-This matters more than it looks. Without it, every service account in your
-directory is priced as a seat somebody holds, which inflates the single number
-the Waste Ledger exists to produce, every week, in the direction that looks best.
+```mermaid
+flowchart LR
+    A["🔑 Your Claude account<br/>Anthropic's own API"]
+    B["💻 Your machine<br/>a folder you chose"]
+    C["📊 Waste Ledger"]
+    D["📈 Value X-Ray"]
+    E["🔒 Exposure Report"]
 
-Both decisions are stored next to the data they describe, so copying this tool to
-another business unit doesn't carry the old decisions with it. The file formats
-are in [the command reference](docs/REFERENCE.md#decisions-only-you-can-make) if
-you'd rather write them by hand.
+    A -->|"only when you ask for a pull"| B
+    B --> C
+    B --> D
+    B --> E
+
+    classDef src fill:#EDE9FB,stroke:#9B7FF5,stroke-width:2px,color:#231363
+    classDef mine fill:#231363,stroke:#231363,color:#FAF6F5
+    classDef out fill:#ffffff,stroke:#D7D5E2,color:#222222
+    class A src
+    class B mine
+    class C,D,E out
+```
+
+Exactly two places in the code make an outbound call, and you can check both
+yourself: `pipeline/fetch/` downloads your own account's data, and
+`pipeline/judges/anthropic.py` runs **only** if you pick the model reader for the
+Exposure Report. Choose a person with a worksheet instead and the whole thing
+makes no network calls at all.
 
 ## Before it reads anyone's conversations
 
@@ -212,14 +229,15 @@ time you ask, it stops, explains exactly what will be stored and where, and asks
 for the name of the person accountable for the decision. That answer is saved
 next to the data.
 
-The point is simple: in six months, when somebody asks *"who decided we'd start
-reading this?"*, there is an answer with a name and a date on it.
+> In six months, when somebody asks *"who decided we'd start reading this?"*,
+> there is an answer with a name and a date on it.
 
-Then nothing counts as a finding until it has been read twice — once by a judge,
-once by an independent verifier who is never told what the first one concluded.
-Only what survives both passes is published. You choose who does that reading: a
-person working through a worksheet, with no network calls at all, or a Claude
-model.
+Then comes the rule the whole report is built on:
+
+![How a match becomes a finding: a scan match is a lead, not a result — about 44% survive being read once; whatever the first reader calls real is read again by someone told nothing of the first verdict; only what survives both passes is published, and a disagreement is published as neither](docs/assets/two-passes.svg)
+
+You choose who does that reading: a person working through a worksheet, with no
+network calls at all, or a Claude model.
 
 **→ Full walkthrough: [the Exposure Report](docs/EXPOSURE_REPORT.md).**
 
@@ -249,17 +267,29 @@ the first time you pull your own account's data.
 
 ## When something goes wrong
 
+Three problems account for most of it:
+
+| | What you see | What it means | Fix |
+|---|---|---|---|
+| **1** | The skills don't appear, or the plugin list is empty | It was installed part-way through a session | **Start a new conversation.** Nothing is broken and reinstalling won't help. |
+| **2** | `No module named 'requests'` on your first real pull | Downloading needs one library; building reports doesn't | `pip install requests` |
+| **3** | An emailed report opens as a blank white page | The page draws itself when a browser opens it; a preview pane doesn't | Save the attachment and open it in a **browser**. Send reports as attachments, never pasted into an email body. |
+
+<details>
+<summary><b>Everything else</b> — keys, blocked reports, dashes where numbers should be</summary>
+
+<br>
+
 | What you see | What it means | Fix |
 |---|---|---|
-| The plugin's skills don't appear, or the plugin list is empty | It was installed part-way through a session | Start a new conversation. Nothing is broken and reinstalling won't help. |
 | Nothing happened at all after installing | The greeting only speaks once per machine | Ask "what is Chief AI Officer?" — it will introduce itself. |
-| `ModuleNotFoundError: No module named 'requests'` on your first real pull | Downloading needs one library; building reports doesn't | `pip install requests`, or `pip install -r requirements.txt` from a checkout. |
 | `401` or `403` from the API | The key is wrong, expired, or revoked | Check it was pasted whole. An Admin key cannot read conversation content — for the Exposure Report you need a Compliance key. |
 | A report is listed as blocked, not built | It failed one of the publication gates | The message names the gate. This is the tool working correctly — fix the cause, don't look for an override. |
 | "too new to compare" all over a report | Your data doesn't go back far enough yet | Normal in the first week or two. Keep pulling; comparisons appear once there's history. |
 | A figure reads `—` or "cannot be measured" | The data doesn't carry what that figure needs | Deliberate, and it must not be read as zero. The report names the reason. |
-| An emailed report opens as a blank white page | The page draws itself when a browser opens it; a preview pane doesn't | Save the attachment and open it in a browser. Send reports as attachments, never pasted into an email body. |
 | `command not found: caio` | You're using the CLI without having installed it | `pip install -e .` from a checkout — or just ask Claude instead, which doesn't need it. |
+
+</details>
 
 Still stuck? Open an issue at
 [github.com/100xopensource/chief-ai-officer/issues](https://github.com/100xopensource/chief-ai-officer/issues).
@@ -267,61 +297,81 @@ Please don't paste real report content or API keys into an issue.
 
 ## Common questions
 
-**Does any of our data leave the building?**
-Only to Anthropic's own API, and only when you ask for it. There is no
-telemetry, no analytics, no phone-home, and no 100x server involved at any
-point. Exactly two places make outbound calls, and you can check both yourself:
-`pipeline/fetch/` downloads your own account's data, and
-`pipeline/judges/anthropic.py` runs *only* if you pick the model judge for the
-Exposure Report. A person with a worksheet does the same job with no network
-calls at all.
+<details>
+<summary><b>Does installing this read our conversations?</b></summary>
 
-**Does installing this read our conversations?**
+<br>
+
 No. Installing reads nothing and downloads nothing. Every download is a step you
 ask for, and the conversation pull additionally requires a recorded consent
 decision with a person's name on it.
 
-**Can I run just the cost reports and skip the conversation reading entirely?**
+</details>
+
+<details>
+<summary><b>Can I run just the cost reports and skip the conversation reading entirely?</b></summary>
+
+<br>
+
 Yes, and plenty of firms should start that way. Pull cost and usage only, and you
 get the Waste Ledger and Value X-Ray. The Exposure Report is reported as
 unbuildable, with the reason and the step that would fix it.
 
-**Can employees be identified in the reports?**
-Not by default. Reports are built in "shareable" edition, where the gates block
-email addresses and any group under five people. There is a named edition for
-internal-only use that permits email addresses; every other gate still applies.
+</details>
 
-**How often should I run it?**
+<details>
+<summary><b>Can employees be identified in the reports?</b></summary>
+
+<br>
+
+Not by default. Reports are built in "shareable" edition, where the gates block
+email addresses and any group under five people — in a firm of a hundred,
+*"3 people in the commercial team"* is close enough to naming them that any
+reader can finish the sentence. There is a named edition for internal-only use
+that permits email addresses; every other gate still applies.
+
+</details>
+
+<details>
+<summary><b>How often should I run it?</b></summary>
+
+<br>
+
 Weekly. The reports are built around a week-long window and compare it to the
 previous four weeks averaged.
 
-**Is this an Anthropic product?**
+</details>
+
+<details>
+<summary><b>Is this an Anthropic product?</b></summary>
+
+<br>
+
 No. It's open source from [100x](https://100xteam.ai), Apache-2.0 licensed, and
 reads Anthropic's public admin and compliance APIs like any other client would.
 
+</details>
+
 ## Repository guide
 
-- [Getting started](docs/GETTING_STARTED.md) — the full walkthrough, from
-  installing to your first real report.
-- [Why you can trust the numbers](docs/TRUST.md) — what the publication gates
-  check, what they deliberately don't, and the two wrong reports that changed
-  the wording.
-- [The Exposure Report](docs/EXPOSURE_REPORT.md) — consent, the two reading
-  passes, and choosing between a person and a model.
-- [Command reference](docs/REFERENCE.md) — every command, the six stages, what's
-  in this repository, and running without installing.
-- [Architecture](docs/architecture.md) — four diagrams: what ships, what a person
-  does with it, how data moves, and the rule separating a match from a finding.
-- [Privacy](PRIVACY.md) · [Security policy](SECURITY.md) ·
-  [Contributing](CONTRIBUTING.md) · [Handoff notes](HANDOFF.md)
+| Read this | When you want |
+|---|---|
+| 🚀 &nbsp;[Getting started](docs/GETTING_STARTED.md) | The full walkthrough, from installing to your first real report |
+| 🔬 &nbsp;[Why you can trust the numbers](docs/TRUST.md) | What the publication gates check, what they deliberately don't, and the two wrong reports that changed the wording |
+| 🔒 &nbsp;[The Exposure Report](docs/EXPOSURE_REPORT.md) | Consent, the two reading passes, and choosing between a person and a model |
+| ⌨️ &nbsp;[Command reference](docs/REFERENCE.md) | Every command, the six stages, and running without installing |
+| 🏗️ &nbsp;[Architecture](docs/architecture.md) | Four diagrams: what ships, what a person does with it, how data moves, and the rule separating a match from a finding |
+
+[Privacy](PRIVACY.md) · [Security policy](SECURITY.md) ·
+[Contributing](CONTRIBUTING.md) · [Handoff notes](HANDOFF.md)
 
 ## Licensing
 
-- This repository is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE)
-  for the attribution notice that must be kept in any copy.
-- `requests` and `pandas` are runtime dependencies installed from PyPI. They are
-  not redistributed here. `anthropic` is optional and only needed for the model
-  judge.
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE) for the attribution
+notice that must be kept in any copy.
+
+- `requests` and `pandas` are runtime dependencies installed from PyPI, not
+  redistributed here. `anthropic` is optional, and only for the model reader.
 - Apache-2.0 grants no trademark rights. You may fork and redistribute the code;
   you may not use the 100x name or marks to describe your fork or imply that
   100x produced it.
