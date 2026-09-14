@@ -17,7 +17,6 @@ apache.org                  # the licence text
 jsdelivr.net                # the CDN the report templates load Chart.js from
 cdn.jsdelivr.net            # same, fully qualified
 100xteam.ai                 # the maintaining organization, published deliberately
-100xpartners.ai             # the maintaining organization's site, linked from the README
 schema.org                  # structured-data vocabulary in report markup
 python.org                  # the official Python download page, linked from the README
 www.python.org              # same, fully qualified
