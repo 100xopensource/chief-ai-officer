@@ -84,10 +84,15 @@ caio all --data-dir data-demo --out-dir _reports
 It prints what it's doing, then finishes with something like:
 
 ```
-  built  waste-ledger-2026-07-12.html      ·  2 finding(s)  ·  12 gates passed
-  built  value-xray-2026-07-12.html        ·  2 finding(s)  ·  12 gates passed
-  built  exposure-report-2026-07-12.html   ·  6 finding(s)  ·  12 gates passed
+  built  waste-ledger-2026-07-12.html      ·  2 finding(s)  ·  13 integrity checks passed
+  built  value-xray-2026-07-12.html        ·  1 finding(s)  ·  13 integrity checks passed
+  built  exposure-report-2026-07-12.html   ·  6 finding(s)  ·  13 integrity checks passed
 ```
+
+"Integrity checks" and not "checks", deliberately. Those checks say the document
+is well-formed and leaks nothing. They do not say the numbers are right — see
+[Why you can trust the numbers](#why-you-can-trust-the-numbers) for what does
+and does not get verified.
 
 ### Step 6 — Look at them
 
@@ -173,12 +178,17 @@ Exposure Report.
 ### Step 2 — Download your cost and usage data
 
 ```bash
-python3 -m pipeline.fetch.analytics --data-dir data
+caio pull everything --data-dir data
 ```
 
-This creates a folder called `data` and fills it with your usage numbers. First
-run pulls your history and takes a few minutes; later runs only pull what's new
-and take seconds.
+This creates a folder called `data` and fills it with your usage numbers and
+your seat list. First run pulls your history and takes a few minutes; later runs
+only pull what's new and take seconds.
+
+`everything` means cost, usage and the seat directory. It deliberately does
+**not** include the text of conversations — that one is always asked for by name
+(`caio pull content`), because it needs a recorded consent decision first. See
+[Part 4](#part-4--the-exposure-report-and-reading-peoples-conversations).
 
 ### Step 3 — Build your reports
 
@@ -191,6 +201,11 @@ land in `_reports`.
 
 **Run these two commands every Monday morning and you have a standing weekly
 reporting pack.**
+
+```bash
+caio pull everything --data-dir data
+caio all --data-dir data --out-dir _reports
+```
 
 If some data is missing, it tells you which report it can't build and exactly
 what's missing, rather than guessing. To see that check on its own:
@@ -217,6 +232,49 @@ If a report fails any of its safety checks, **nothing is packaged, and there is
 no override flag.** A report you had to switch off a privacy check to send isn't
 a report.
 
+### Step 5 — Tell it the things only you know
+
+Some facts about your organisation aren't in the data and never will be. Which
+accounts are service accounts rather than people. Which bare identifier is
+actually Salesforce. You work it out once, write it down once, and every report
+from then on honours it.
+
+These live in `data/_reports/config/`, next to the data they describe — so
+copying this tool to another business unit doesn't carry the old decisions with
+it. Both files are optional.
+
+**`seat_exclusions.json`** — accounts that hold no active seat. They come out of
+the seat total, the idle-seat count, and the recoverable figure that goes to
+Finance.
+
+```json
+{
+  "excluded": [
+    {"user_id": "user_01ABC...", "reason": "service account", "decided_on": "2026-08-17"},
+    {"user_id": "user_01DEF...", "reason": "shared mailbox",  "decided_on": "2026-08-17"}
+  ]
+}
+```
+
+This one matters more than it looks. Without it, every service account in your
+directory is priced as a seat somebody holds — which inflates the single number
+the Waste Ledger exists to produce, every week, in the direction that looks best.
+
+**`connector_aliases.json`** — names for connections that report as a bare
+identifier. Some connections arrive with no name attached, and nothing in the
+data can say what they are; the identifier is all the source publishes. Look each
+one up in your admin console once:
+
+```json
+{"19b950ec-0c72-4e2e-9d3e-8a1f4c6b2e77": "Salesforce"}
+```
+
+As a bonus, this fixes double-counting: a connection that reports under a name
+*and* under an identifier is counted twice until you say they're the same thing.
+
+`caio check` prints which of these it found and how many entries each has, so a
+decision being honoured is visible — and one being ignored is too.
+
 ---
 
 ## Part 4 — The Exposure Report, and reading people's conversations
@@ -235,7 +293,7 @@ The point is simple: in six months, when somebody asks *"who decided we'd start
 reading this?"*, there is an answer with a name and a date on it.
 
 ```bash
-python3 -m pipeline.fetch.compliance --data-dir data
+caio pull content --data-dir data
 ```
 
 Things worth knowing before you run it:
@@ -340,18 +398,52 @@ says so plainly. Nothing is padded to fill a page.
 **Every finding names an owner and one thing they can actually do.** A finding
 about something nobody can change isn't a finding.
 
-### The twelve gates
+### The publication gates
 
-No report is allowed out until it passes twelve checks, run against the finished
+No report is allowed out until it passes every gate, run against the finished
 file rather than against a promise about what's in it. A report is blocked if it
 contains an email address, a filename, a loose run of digits that could be a
 leaked value, a group of three described as "3 people", internal jargon, a
 regulatory claim the tool can't support, arithmetic that doesn't add up, a
-caveat that got quietly dropped during a rewrite, or a record missing something
-the page needs to display.
+caveat that got quietly dropped during a rewrite, a column that is zero in every
+single row, or a record missing something the page needs to display.
 
 **Every one of those gates exists because that exact mistake once reached a real
 reader.**
+
+### What the gates do *not* check — and why the wording changed
+
+They check the document's **form**. Not one of them checks whether a number was
+computed from a field that exists.
+
+That distinction cost this project two confidently wrong reports. The metric code
+was written against the demo lake, whose shape didn't match what the live API
+returns, so several metrics read fields that were simply absent. A missing field
+doesn't crash — it sums to zero. And a zero passes every gate here: the document
+renders, nothing leaks, and the reconciliation block ties out perfectly, because
+zero equals zero. One of those zeros rendered as a stat card reading **"0% of
+connector calls failed"** over a data source that publishes no failure data at
+all.
+
+The run said `12 gates passed`, and everybody — including the people who built it
+— read that as *the numbers are right*. So it now says:
+
+```
+13 integrity checks passed · numbers not independently verified
+```
+
+Two things were added underneath that wording:
+
+- **A shape check at read time.** Each stage declares the fields it consumes, and
+  they're checked against what's actually in your lake. A missing field is now a
+  stated skip with a named reason — never a silent zero. `caio check` reports it.
+- **A zero-variance gate.** A column that is zero in every row, or a total of zero
+  reconciled against parts that are all zero, is refused. A column of zeros was
+  never measured as zero; it wasn't measured.
+
+The rule underneath both: **an absence of measurement is not a measurement of
+zero**, and a reader is entitled to have the two told apart. A blank where a
+failure rate used to be reads as good news.
 
 To run the gates against a report by hand:
 
@@ -360,10 +452,9 @@ python3 -m pipeline.render.validate _reports/exposure-report-2026-07-12.html \
         --json-sidecar _reports/exposure-report-2026-07-12.json
 ```
 
-That prints `12 passed`. Leave off the `--json-sidecar` and you'll see `11
-passed` instead — the twelfth gate is the one that checks the report against its
-own data file, so it needs both files to run. Both are written side by side in
-`_reports/`.
+That prints `13 integrity checks passed`. Leave off the `--json-sidecar` and
+you'll see one fewer — the last gate checks the report against its own data file,
+so it needs both files to run. Both are written side by side in `_reports/`.
 
 ---
 
@@ -372,14 +463,38 @@ own data file, so it needs both files to run. Both are written side by side in
 If your team uses Claude Code, you can install this as a plugin and just ask for
 things in plain English instead of typing commands.
 
+**Step 1 — install it:**
+
 ```
 /plugin marketplace add 100xopensource/chief-ai-officer
 /plugin install 100x-chief-ai-officer@100x-chief-ai-officer
 ```
 
-It introduces itself on your next session — what it is, the fact that it hasn't
-read anything yet, and the two things you can do next. Type `caio welcome` to see
-that again any time, or set `CAIO_WELCOME=never` to silence it.
+**Step 2 — start a new conversation.** This isn't a footnote. A plugin installed
+part-way through a session isn't picked up until a new one begins: the skills
+won't appear and the plugin list comes back empty, even though every file is
+already on disk. It looks exactly like a failed install. It isn't one, and
+reinstalling won't help — just start a new conversation.
+
+It then introduces itself — what it is, the fact that it hasn't read anything
+yet, and the two things you can do next. Ask for the welcome again any time, or
+set `CAIO_WELCOME=never` to silence it.
+
+**Do I need `pip install` as well?** No. If you installed the plugin, the code is
+already on disk and every command works as:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" check --data-dir data
+```
+
+Write it with `$CLAUDE_PLUGIN_ROOT`, not with the path it currently expands to.
+That directory is scoped to the session and **changes between sessions**, so a
+path you paste into your notes today is wrong tomorrow. The variable is right
+every time. If you'd rather just type `caio`, run `pip install -e .` from a
+checkout once and the prefix goes away.
+
+In practice you won't type any of this — you ask in plain English and the skills
+run the right command for you. It's here for when you want to check what was run.
 
 Five skills become available:
 
@@ -398,12 +513,14 @@ Five skills become available:
 | What you see | What it means | Fix |
 |---|---|---|
 | `command not found: python3` | Python isn't installed | Install from [python.org](https://www.python.org/downloads/). On Windows try `python` instead. |
-| `command not found: caio` | Step 3 didn't finish, or you're in the wrong folder | `cd` back into the project folder and re-run `pip install -e .` |
+| `command not found: caio` | Step 3 didn't finish, or you're in the wrong folder | `cd` back into the project folder and re-run `pip install -e .`. Installed as a Claude Code plugin and never ran `pip`? You don't have `caio` — use `python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"` instead. |
+| The plugin's skills don't appear, or the plugin list is empty | It was installed part-way through a session | Start a new conversation. Nothing is broken and reinstalling won't help. |
+| An emailed report opens as a blank white page | The page draws itself when a browser opens it; a preview pane doesn't | Save the attachment and open it in a browser. Send reports as attachments, never pasted into an email body. |
 | `command not found: pip` | `pip` isn't on your PATH | Use `python3 -m pip install -e .` |
 | `CAIO_API_KEY, ANTHROPIC_ADMIN_KEY, or ANTHROPIC_API_KEY not set` | No key in this terminal window | Re-run the `export` from Part 3, Step 1. Closing the terminal clears it. |
 | `401` or `403` from the API | The key is wrong, expired, or is the wrong *type* of key | Analytics needs an **Admin** key; conversation content needs a **Compliance** key. They aren't interchangeable. |
 | `no API key. Set CAIO_API_KEY to a Compliance Access Key` | You have an Admin key but not a Compliance one | Either request a Compliance key, or skip the Exposure Report and run the other two. |
-| A report is listed as blocked, not built | It failed one of the twelve gates | The message names the gate. This is the tool working correctly — fix the cause, don't look for an override. |
+| A report is listed as blocked, not built | It failed one of the publication gates | The message names the gate. This is the tool working correctly — fix the cause, don't look for an override. |
 | "too new to compare" all over a report | Your data doesn't go back far enough yet | Normal on the first week or two. Keep pulling; comparisons appear once there's history. |
 | `caio check` says a report can't be built | Some required data is missing | The output names exactly which data. Usually it's the compliance pull you haven't run. |
 
@@ -434,9 +551,9 @@ consent decision with a person's name on it.
 
 **Can I run just the cost reports and skip the conversation reading entirely?**
 Yes, and plenty of firms should start that way. Run only
-`python3 -m pipeline.fetch.analytics` and you get the Waste Ledger and Value
-X-Ray. The Exposure Report will simply be reported as unbuildable, with the
-reason.
+`caio pull everything` and you get the Waste Ledger and Value X-Ray. The
+Exposure Report will simply be reported as unbuildable, with the reason and the
+command that would fix it.
 
 **Can employees be identified in the reports?**
 Not by default. Reports are built in "shareable" edition, where the gates block
@@ -462,6 +579,7 @@ reads Anthropic's public admin and compliance APIs like any other client would.
 |---|---|
 | `caio welcome` | What this is and what to do next, in plain English |
 | `caio demo` | Invent a fictional company to try it on |
+| `caio pull` | Download your own account's data into the lake |
 | `caio check` | What your data can answer, and what's missing |
 | `caio scan` | Sweep conversation content for sensitive-data patterns |
 | `caio judge` | Read the flagged passages and decide if they're real |
@@ -472,15 +590,22 @@ reads Anthropic's public admin and compliance APIs like any other client would.
 
 Add `--help` to any of them for the full option list.
 
-Downloading data stays on separate, longer commands on purpose. Pulling touches
-a network and needs credentials, and someone who asked for a report should not
-get a network call they didn't ask for:
+Downloading is a command of its own on purpose, and `caio all` never does it.
+Pulling touches a network and needs credentials, and someone who asked for a
+report should not get a network call they didn't ask for. So you ask for it by
+name:
 
 ```bash
-python3 -m pipeline.fetch.analytics   --data-dir data   # cost and usage
-python3 -m pipeline.fetch.compliance  --data-dir data   # conversation content
-python3 -m pipeline.fetch.consent     --data-dir data --show
+caio pull analytics  --data-dir data   # cost and usage
+caio pull directory  --data-dir data   # who holds a seat
+caio pull everything --data-dir data   # both of the above — never content
+caio pull content    --data-dir data   # conversation text, consent-gated
+
+python3 -m pipeline.fetch.consent --data-dir data --show   # what you consented to
 ```
+
+Anything you put after the target is passed straight to the fetcher, so
+`caio pull analytics --since 2026-04-01` and `--full-refresh` work as before.
 
 ### Prefer not to install?
 

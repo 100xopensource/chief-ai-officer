@@ -55,6 +55,9 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from pipeline import config
+from pipeline.lake import schema
+
 JsonObject = dict[str, Any]
 
 STATE_FILE = "_state.json"
@@ -223,7 +226,7 @@ def gapcheck(root: Path, as_of: date | None = None) -> JsonObject:
             "status": "blocked" if missing else "clear",
             "blocked_on": missing,
             "narrower_without": thin,
-            "reader_note": _reader_note(spec, missing, thin),
+            "reader_note": _reader_note(spec, missing, thin, root),
         }
 
     stale = []
@@ -238,6 +241,23 @@ def gapcheck(root: Path, as_of: date | None = None) -> JsonObject:
     undeclared = sorted(set(present) - set(state))
     declared_missing = sorted(d for d in state if d not in present)
 
+    # Three things this check used to miss, each of which let a wrong number
+    # through with everything else looking fine.
+    #
+    # shape      a dataset can be present, fresh and full of rows and still not
+    #            carry the field a stage is about to read. That reads downstream
+    #            as a measurement of zero, which is the most reassuring possible
+    #            way to be wrong.
+    # coverage   the datasets do not all reach the same day. Cost reaches the end
+    #            of the week; activity finalises a couple of days behind it, so
+    #            the reported week gets measured over five days for some numbers
+    #            and compared against four seven-day baselines.
+    # decisions  the operator's standing exclusions and aliases, so a decision
+    #            being honoured is visible and one being ignored is too.
+    shape = schema.check(root)
+    coverage = W_coverage(root, window["week_start"], window["week_end"])
+    decisions = config.describe(root)
+
     blocked = [k for k, r in reports.items() if r["status"] == "blocked"]
     return {
         "stage": "x0_gapcheck",
@@ -250,18 +270,82 @@ def gapcheck(root: Path, as_of: date | None = None) -> JsonObject:
         "stale": sorted(stale, key=lambda s: -s["age_days"]),
         "on_disk_but_not_in_state": undeclared,
         "in_state_but_not_on_disk": declared_missing,
+        "shape": shape,
+        "shape_broken": [r for r in shape if not r["ok"]],
+        "coverage": coverage,
+        "decisions": decisions,
+        "decisions_broken": [d["file"] for d in decisions if d.get("error")],
         "clear": [k for k, r in reports.items() if r["status"] == "clear"],
         "blocked": blocked,
-        "summary": _summary(reports, stale, root),
+        "summary": _summary(reports, stale, root,
+                            [d["file"] for d in decisions if d.get("error")]),
     }
 
 
-def _reader_note(spec: JsonObject, missing: list[str], thin: list[str]) -> str:
+def W_coverage(root: Path, start: str, end: str) -> JsonObject:
+    """Per-dataset coverage of the reported week. Imported late to keep this
+    stage importable from `_window`, which imports this one for the window."""
+    from pipeline.stages import _window as W
+    return W.window_coverage(
+        root, ["analytics_cost", "analytics_user_cost", "analytics_users",
+               "analytics_connectors", "analytics_skills"], start, end)
+
+
+# What a person actually does about a missing dataset, said at the point they
+# find out it is missing. The message used to name the table and stop there —
+# "fact_block is not in this lake. Pull it, then run again" — which names a
+# thing the reader has never heard of and an action they cannot take, since
+# the pull it refers to is gated on a consent decision the message never
+# mentions. A blocked report should be the most helpful message in the run: it
+# is the one the reader is stuck on.
+REMEDY = {
+    "fact_block": (
+        "This is the conversation text, and it is the one pull that reads what "
+        "people wrote. It is deliberately gated: the first run stops, explains "
+        "what will be stored and where, and asks for the name of the person "
+        "accountable for the decision, which is saved next to the data.\n"
+        "{indent}To start that:  caio pull content --data-dir {root}"
+    ),
+    "dim_chat": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "fact_message": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "fact_attachment": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "analytics_cost": "caio pull analytics --data-dir {root}",
+    "analytics_users": "caio pull analytics --data-dir {root}",
+    "analytics_user_cost": "caio pull analytics --data-dir {root}",
+    "analytics_usage": "caio pull analytics --data-dir {root}",
+    "analytics_connectors": "caio pull analytics --data-dir {root}",
+    "analytics_skills": "caio pull analytics --data-dir {root}",
+    "directory_users": "caio pull directory --data-dir {root}",
+    "directory_group_members": "caio pull directory --data-dir {root}",
+}
+
+
+def _remedy(missing: list[str], root: Path, indent: str = " " * 11) -> str:
+    """The command that fixes it, deduplicated, or nothing if we cannot say.
+
+    `indent` lines continuation lines up under the first, which sits at a
+    different column in the printed check than in a report's own reader note.
+    """
+    seen: list[str] = []
+    for dataset in missing:
+        text = REMEDY.get(dataset)
+        if text:
+            text = text.format(root=root, indent=indent)
+            if text not in seen:
+                seen.append(text)
+    return ("\n" + indent).join(seen)
+
+
+def _reader_note(spec: JsonObject, missing: list[str], thin: list[str],
+                 root: Path | None = None) -> str:
     """One sentence a report can print about its own coverage."""
     if missing:
-        return (f"The {spec['title']} cannot be produced: "
+        note = (f"The {spec['title']} cannot be produced: "
                 f"{_english_list(missing)} {'is' if len(missing) == 1 else 'are'} "
-                "not in this lake. Pull it, then run again.")
+                "not in this lake.")
+        indent = " " * 9
+        remedy = _remedy(missing, root or Path("data"), indent)
+        return f"{note}\n{indent}{remedy}" if remedy else f"{note} Pull it, then run again."
     if thin:
         return (f"The {spec['title']} can be produced, but without "
                 f"{_english_list(thin)} it answers less than it could. "
@@ -275,10 +359,18 @@ def _english_list(items: list[str]) -> str:
     return ", ".join(items[:-1]) + f" and {items[-1]}"
 
 
-def _summary(reports: dict[str, JsonObject], stale: list[JsonObject], root: Path) -> str:
+def _summary(reports: dict[str, JsonObject], stale: list[JsonObject], root: Path,
+             broken_config: list[str] | None = None) -> str:
     if not root.exists():
         return (f"No lake at {root}. Nothing can be reported until data is pulled, or "
                 "until a synthetic lake is generated to try the tools on.")
+    # A config that will not parse stops every build, so nothing is ready to run
+    # regardless of what the data can answer. Saying "ready" above a BROKEN line
+    # would make this command contradict itself, and the build contradict it.
+    if broken_config:
+        return (f"{_english_list(broken_config)} will not parse, so no report can be "
+                "built until it is fixed. Nothing else here has been ruled out; the "
+                "config is simply read first.")
     clear = [r["title"] for r in reports.values() if r["status"] == "clear"]
     blocked = [r["title"] for r in reports.values() if r["status"] == "blocked"]
     parts = []
@@ -314,8 +406,49 @@ def render_human(result: JsonObject) -> str:
         lines.append(f"  {mark}  {report['title']:<16} for {report['reader']}")
         if report["blocked_on"]:
             lines.append(f"           missing: {', '.join(report['blocked_on'])}")
+            # The remedy, here, where somebody is stuck. Naming the missing
+            # table and stopping told the reader the name of a thing they had
+            # never heard of and nothing they could do about it.
+            remedy = _remedy(report["blocked_on"], Path(result["data_dir"]))
+            if remedy:
+                lines.append(f"           {remedy}")
         elif report["narrower_without"]:
             lines.append(f"           narrower without: {', '.join(report['narrower_without'])}")
+    broken = result.get("shape_broken") or []
+    if broken:
+        lines.append("")
+        lines.append("  Present but the wrong shape — these will be reported as not")
+        lines.append("  measurable rather than as zero:")
+        for item in broken:
+            lines.append(f"    {item['dataset']:<26} {item['consumer']}")
+            lines.append(f"      missing: {', '.join(item['missing'])}")
+
+    coverage = result.get("coverage") or {}
+    if coverage.get("any_short"):
+        lines.append("")
+        lines.append("  Does not reach the end of the reported week:")
+        for name in coverage["short_datasets"]:
+            entry = coverage["datasets"][name]
+            lines.append(f"    {name:<26} stops at {entry['last_day']} "
+                         f"({entry['days_with_data']} of {entry['expected_days']} days)")
+        lines.append("    A week measured over fewer days reads as a fall that did not")
+        lines.append("    happen, so anything drawn from these is labelled, not compared.")
+
+    in_force = [d for d in (result.get("decisions") or []) if d.get("present")]
+    if in_force:
+        lines.append("")
+        lines.append("  Standing decisions being honoured:")
+        for entry in in_force:
+            # A file that will not parse must never print as "0 entry(s)". That
+            # is indistinguishable from a file recording no exclusions, and it
+            # is wrong in the reassuring direction: the run that follows refuses
+            # to build, and this is the command meant to have said why.
+            if entry.get("error"):
+                lines.append(f"    {entry['file']:<26} BROKEN — it will stop the next build")
+                lines.append(f"      {entry['error']}")
+            else:
+                lines.append(f"    {entry['file']:<26} {entry.get('entries', 0)} entry(s)")
+
     if result["stale"]:
         lines.append("")
         lines.append("  Stale (still usable, just older than it looks):")

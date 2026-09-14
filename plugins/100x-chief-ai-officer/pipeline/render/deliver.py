@@ -224,6 +224,12 @@ def _cover_note(manifest: JsonObject, block: JsonObject) -> str:
         f"The {manifest['title']} covers {REPORT_PURPOSE.get(kind, 'this period')}. "
         "It is one HTML file — open it in any browser, no software needed, nothing to install.",
         "",
+        "**Attach the file; do not paste it into the body of an email.** The page draws "
+        "its own contents when a browser opens it, so an email preview pane, a chat "
+        "preview or a document viewer shows nothing. Whoever you send it to should save "
+        "the attachment and open it in a browser. The file itself says so if they land "
+        "on it the other way.",
+        "",
         "## The short version",
         "",
         verdict or "_See the report._",

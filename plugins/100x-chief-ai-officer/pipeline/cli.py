@@ -27,14 +27,18 @@ Every stage still runs on its own:
 What it will not do
 -------------------
 It will not pull data. Pulling needs credentials and touches a network, and
-bundling that into the same command as "produce the reports" means a person
-who wanted a report gets a network call they did not ask for. Pull explicitly:
+bundling that into the same command as "produce the reports" means a person who
+wanted a report gets a network call they did not ask for. So pulling is asked
+for by name:
 
-    python3 -m pipeline.fetch.analytics  --data-dir data
-    python3 -m pipeline.fetch.compliance --data-dir data
+    caio pull analytics --data-dir data    # cost and usage
+    caio pull content   --data-dir data    # conversation text, consent-gated
 
-(Those stay as module paths deliberately: pulling touches a network and needs
-credentials, and it should not look like the same kind of thing as `caio all`.)
+That rule was right and the way it was expressed was not. There was no pull
+command at all, on the reasoning that a module path would not be mistaken for
+`caio all` — which is true, and also meant the documented weekly routine was two
+commands, one of which was not a command. Separating the two is a matter of
+asking for it by name, not of withholding a name to ask by.
 
 It will not write a report that fails its gates. A stage that fails stops the
 run for that report and says why; the other reports still finish, because one
@@ -44,6 +48,7 @@ Commands
 --------
     welcome    what this is and what to do next, in plain English
     demo       invent a company to try the tools on, with no credentials
+    pull       download your own account's data into the lake
     check      what this lake can answer, and what it is missing
     scan       sweep conversation content for sensitive-data patterns
     judge      read the flagged passages and judge them
@@ -62,6 +67,7 @@ if __package__ in (None, ""):
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,13 +89,32 @@ REPORTS = ("waste", "value", "exposure")
 def invoked_as() -> str:
     """How this run was started, so a printed next step is one the reader can paste.
 
-    The package is usable two ways — installed, as `caio`, or from a checkout as
-    `python3 -m pipeline.cli`. Printing the wrong one is a small thing that
-    wastes somebody's first ten minutes, which is exactly the failure this
-    project keeps finding in its own documentation.
+    Three ways, not two:
+
+      installed          `caio`
+      from a checkout    `python3 -m pipeline.cli`, with the plugin on PYTHONPATH
+      a plugin only      the command file's own path
+
+    The third was answered with the second, which is wrong in the one case that
+    matters most: somebody who installed from the marketplace has no checkout
+    and nothing on PYTHONPATH, so `python3 -m pipeline.cli` fails. They were
+    being handed it as the next step immediately after a command that had just
+    worked — the same "documented command does not run" failure this project
+    keeps finding in itself.
+
+    Written as $CLAUDE_PLUGIN_ROOT rather than the path it expands to, because
+    that directory is session-scoped: a resolved path is correct once and then
+    silently wrong.
     """
-    name = Path(sys.argv[0]).name
-    return "caio" if name == "caio" else "python3 -m pipeline.cli"
+    argv0 = Path(sys.argv[0])
+    if argv0.name == "caio":
+        return "caio"
+    if argv0.name == "cli.py":
+        told = os.environ.get("CLAUDE_PLUGIN_ROOT")
+        if told and argv0.resolve() == (Path(told) / "pipeline" / "cli.py").resolve():
+            return 'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"'
+        return f'python3 "{argv0}"'
+    return "python3 -m pipeline.cli"
 
 
 def log(message: str) -> None:
@@ -148,6 +173,94 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+# What each `pull` target does, and which module actually does it. The mapping
+# is here rather than in prose because "run this module path" is not a user
+# interface — somebody who wants this week's numbers should not have to be told
+# the package layout to get them.
+PULL_TARGETS = {
+    "analytics": ("pipeline.fetch.analytics", "cost and usage numbers",
+                  "Waste Ledger, Value X-Ray"),
+    "directory": ("pipeline.fetch.directory", "who holds a seat",
+                  "the seat counts in both cost reports"),
+    "content": ("pipeline.fetch.compliance", "the text of conversations",
+                "Exposure Report"),
+}
+
+
+def cmd_pull(args: argparse.Namespace) -> int:
+    """Download your own account's data into the lake.
+
+    Kept a separate command from `all`, and never run by it: somebody who asked
+    for a report should not get a network call they did not ask for. That was
+    always the rule, and it was right. What was wrong was expressing it by
+    having no command at all, so the only way to refresh data was to know a
+    module path — which meant the documented weekly routine was two commands,
+    one of which was not a command.
+
+    `content` is the conversation pull, and is gated on a recorded consent
+    decision with a person's name on it. That gate lives in the fetch module,
+    not here, so it cannot be bypassed by choosing a different entry point.
+    """
+    targets = (["analytics", "directory"] if args.target == "everything"
+               else [args.target])
+
+    if args.target == "everything":
+        log("Pulling cost, usage and directory. Conversation content is not "
+            "included — it needs a recorded consent decision, so it is always "
+            f"asked for by name:  {invoked_as()} pull content")
+        log("")
+
+    failed = []
+    for target in targets:
+        module, what, unlocks = PULL_TARGETS[target]
+        log(f"── pulling {what} ──────────────────────────────")
+        if _run_fetch(module, args) != 0:
+            failed.append(target)
+            log(f"  FAIL   {target}: nothing was written. {unlocks} will stay blocked.")
+
+    if failed:
+        log("")
+        log("Nothing above was written.")
+        log("")
+        log("If the message above says a key is not set: one key covers all of this.")
+        log("Set CAIO_API_KEY to whichever key your Claude administrator gave you —")
+        log("a Compliance Access Key serves the analytics and directory pulls as well")
+        log("as the conversation pull. Two separate keys are supported, not required:")
+        log("")
+        log('    export CAIO_API_KEY="...the key you were given..."')
+        log("")
+        log(f"Then run the same command again. {invoked_as()} welcome explains the rest.")
+        return 1
+
+    log("")
+    log(f"Now see what it can answer:  {invoked_as()} check --data-dir {args.data_dir}")
+    return 0
+
+
+def _run_fetch(module: str, args: argparse.Namespace) -> int:
+    """Hand off to a fetch module, which owns its own flags and its own gates.
+
+    Invoked through its argv rather than by importing its internals, so the
+    module keeps exactly one entry point and `caio pull` cannot drift away from
+    what `python3 -m pipeline.fetch.<x>` does.
+    """
+    import importlib
+
+    argv = [module, "--data-dir", str(args.data_dir), *(args.passthrough or [])]
+    saved = sys.argv
+    try:
+        sys.argv = argv
+        return int(importlib.import_module(module).main())
+    except SystemExit as exc:  # a fetch module's own argparse rejected a flag
+        return int(exc.code or 0)
+    except KeyboardInterrupt:
+        log("  stopped. Nothing partial is left behind: a week is written whole "
+            "or not at all.")
+        return 1
+    finally:
+        sys.argv = saved
+
+
 def cmd_judge(args: argparse.Namespace) -> int:
     root = Path(args.data_dir)
     run_id = args.run_id or x3_classify.latest_run(root)
@@ -198,6 +311,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
         log(f"verify: {result['error']}")
         return 1
 
+    # The same two-step the first pass has: a worksheet is written, a person
+    # fills it in, the same command reads it back. Printing a resolution table
+    # here instead told people the second reader had disagreed with everything,
+    # when the second reader had not yet read anything.
+    if result.get("awaiting_review"):
+        log(f"Wrote {result['worksheet']} — {result['awaiting_review']} passage(s) "
+            "for the second read.")
+        log("This pass must not see the first pass's answers, so the worksheet "
+            "carries the passages and nothing else.")
+        log("Fill in each VERDICT line, then run this again to read it back.")
+        return 0
+
     statuses = result["statuses"]
     log(f"{statuses['confirmed']:,} confirmed, {statuses['disputed']:,} disputed, "
         f"{statuses['cleared']:,} cleared, {statuses['unverified']:,} still unread.")
@@ -211,7 +336,9 @@ def cmd_check(args: argparse.Namespace) -> int:
           else x0_gapcheck.render_human(result))
     if not result["lake_exists"]:
         return 2
-    return 1 if result["blocked"] else 0
+    # A config file that will not parse stops the next build. This command
+    # exists to find that out cheaply, so it must not report it as success.
+    return 1 if (result["blocked"] or result.get("decisions_broken")) else 0
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
@@ -279,8 +406,11 @@ def cmd_report(args: argparse.Namespace) -> int:
             continue
 
         count = len(block.get("findings") or [])
+        # "gates passed" was read as "the numbers are right" — including by the
+        # people who wrote it — while every gate checks only the document's form.
         log(f"  built  {out.name}  ·  {count} finding(s)  ·  "
-            f"{len(result.passed)} gates passed")
+            f"{len(result.passed)} integrity checks passed, numbers not "
+            "independently verified")
         built.append(out)
 
     if args.deliver and built:
@@ -356,13 +486,16 @@ def cmd_all(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        prog="pipeline.cli",
+        # Named after however this run was actually started, so the usage line
+        # and every error message quote a command the reader can paste back.
+        # Hardcoding it showed `pipeline.cli` to somebody who typed `caio`.
+        prog=invoked_as(),
         description="100x Chief AI Officer — read your own Claude usage, produce three reports.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Start here. No credentials, no real data, two commands:\n"
-            "    caio demo --out data-demo\n"
-            "    caio all --data-dir data-demo --out-dir _reports\n"
+            f"    {invoked_as()} demo --out data-demo\n"
+            f"    {invoked_as()} all --data-dir data-demo --out-dir _reports\n"
         ),
     )
     sub = ap.add_subparsers(dest="command", required=True)
@@ -398,6 +531,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--weeks", type=int, default=14, help="weeks of history (default: 14)")
     p.add_argument("--chats", type=int, default=900, help="conversations (default: 900)")
     p.set_defaults(func=cmd_demo)
+
+    p = sub.add_parser("pull", help="download your own account's data into the lake")
+    p.add_argument("target", choices=[*PULL_TARGETS, "everything"],
+                   help="analytics (cost and usage), directory (who holds a seat), "
+                        "content (conversation text, consent-gated), or everything "
+                        "— which means analytics and directory, never content")
+    p.add_argument("--data-dir", default="data", help="the lake (default: data)")
+    p.add_argument("passthrough", nargs=argparse.REMAINDER,
+                   help="anything after the target goes to the fetcher unchanged "
+                        "(--since, --full-refresh, --products, …)")
+    p.set_defaults(func=cmd_pull)
 
     p = sub.add_parser("check", help="what this lake can answer, and what it is missing")
     shared(p)

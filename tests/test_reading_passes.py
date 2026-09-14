@@ -242,3 +242,130 @@ def _candidate(*, text: str, precision: str) -> Candidate:
         expect_precision=precision, surface="tool_output", day="2026-07-08",
         text=text,
     )
+
+
+# --------------------------------------------------------------------------
+# the worksheet flow, end to end
+#
+# The documented human-review path — the one a firm uses when it will not send
+# conversation content to a model — could never produce a confirmed finding.
+#
+# The worksheet judge writes a placeholder for every passage still waiting to be
+# read, so the passage survives into the next run. x3 knew to ignore those. x4
+# did not, and failed twice over: it counted a placeholder as the second
+# reader's answer, so every passage came back "disputed" before anyone had
+# looked at it; and because placeholders persist, the next run saw them as work
+# already done and never read the reviewer's answers at all. A person could fill
+# in the whole worksheet, run the command the README tells them to run, and get
+# zero confirmed findings — permanently, with nothing to indicate why.
+# --------------------------------------------------------------------------
+
+def _own_run(lake, name):
+    """A scan run of this test's own, so verdicts from a neighbour cannot leak in.
+
+    The lake fixture is shared for speed, and verdicts persist in it per run id.
+    Two tests both judging "test-run" would see each other's answers.
+    """
+    x2_scan.scan(lake, name)
+    return name
+
+
+def _fill(path, answer=VERDICT_REAL, reason="Second reader's own conclusion."):
+    """Answer every open VERDICT line, the way a reviewer would."""
+    filled = 0
+    lines = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith(">>> VERDICT") and line.rstrip().endswith("reason="):
+            filled += 1
+            severity = "internal" if answer == VERDICT_REAL else ""
+            line = f">>> VERDICT verdict={answer} severity={severity} reason={reason}"
+        lines.append(line)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return filled
+
+
+def test_an_unfilled_worksheet_is_awaiting_review_not_a_disagreement(lake, tmp_path):
+    """Writing the worksheet is not the same as reading it."""
+    run = _own_run(lake, "wf-awaiting")
+    sheet = tmp_path / "first.md"
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=40, worksheet=str(sheet))
+    _fill(sheet, VERDICT_REAL)
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=40, worksheet=str(sheet))
+
+    second = tmp_path / "second.md"
+    result = x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))
+
+    assert result.get("awaiting_review"), (
+        "verify handed back a resolution table over a worksheet nobody has read"
+    )
+    assert second.exists()
+    assert result["statuses"]["disputed"] == 0, (
+        "an unread passage was recorded as the second reader disagreeing"
+    )
+
+
+def test_the_second_readers_answers_are_actually_read_back(lake, tmp_path):
+    """The whole point of the flow, and the part that silently did nothing."""
+    run = _own_run(lake, "wf-readback")
+    sheet = tmp_path / "first.md"
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=40, worksheet=str(sheet))
+    called_real = _fill(sheet, VERDICT_REAL)
+    assert called_real
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=40, worksheet=str(sheet))
+
+    second = tmp_path / "second.md"
+    x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))
+    assert _fill(second, VERDICT_REAL), "the second worksheet had nothing to fill in"
+
+    result = x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))
+
+    assert not result.get("awaiting_review")
+    assert result["statuses"]["confirmed"] > 0, (
+        "the reviewer agreed with every passage and nothing was confirmed — "
+        "their work was discarded"
+    )
+    assert result["statuses"]["disputed"] == 0
+
+
+def test_a_placeholder_is_never_treated_as_an_answer():
+    """Both arms of the resolution, checked directly.
+
+    Each failed in the direction that manufactures a conclusion out of no
+    reading: an unread passage read as "cleared", as though the first reader had
+    called it a false alarm, and an unfinished second pass read as "disputed".
+    """
+    waiting = {"verdict": VERDICT_UNSURE, "awaiting_review": True}
+    real = {"verdict": VERDICT_REAL}
+
+    assert x4_verify.resolve(waiting, None) == x4_verify.STATUS_UNVERIFIED
+    assert x4_verify.resolve(waiting, real) == x4_verify.STATUS_UNVERIFIED
+    assert x4_verify.resolve(real, waiting) == x4_verify.STATUS_UNVERIFIED
+    assert x4_verify.resolve(real, real) == x4_verify.STATUS_CONFIRMED
+    assert x4_verify.resolve(real, {"verdict": VERDICT_FALSE_ALARM}) == \
+        x4_verify.STATUS_DISPUTED
+    assert x4_verify.resolve({"verdict": VERDICT_FALSE_ALARM}, None) == \
+        x4_verify.STATUS_CLEARED
+
+
+def test_a_stale_placeholder_does_not_block_a_later_real_reading(lake, tmp_path):
+    """The persistence half of the bug.
+
+    Placeholders are written to disk and survive. If they count as work already
+    done, the reviewer's answers are skipped on every subsequent run, and no
+    amount of filling the worksheet in ever helps.
+    """
+    run = _own_run(lake, "wf-stale")
+    sheet = tmp_path / "first.md"
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=30, worksheet=str(sheet))
+    _fill(sheet, VERDICT_REAL)
+    x3_classify.classify(lake, run, judge_name="worksheet", limit=30, worksheet=str(sheet))
+
+    second = tmp_path / "second.md"
+    x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))  # placeholders land
+    x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))  # still unread
+    _fill(second, VERDICT_REAL)
+    result = x4_verify.verify(lake, run, judge_name="worksheet", worksheet=str(second))
+
+    assert result["statuses"]["confirmed"] > 0, (
+        "placeholders from an earlier run were counted as the second read"
+    )

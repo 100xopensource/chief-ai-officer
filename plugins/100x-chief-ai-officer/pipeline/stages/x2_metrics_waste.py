@@ -52,6 +52,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pipeline import config
 from pipeline.lake import datalake as lake
 from pipeline.stages import _window as W
 from pipeline.stages.x0_gapcheck import resolve_window
@@ -137,8 +138,16 @@ def _seats(root: Path, start: str, end: str) -> JsonObject:
         return {"available": False,
                 "why": "no directory_users snapshot — seat counts need the directory pull"}
 
+    # The operator's exclusions come off the top. Everything below — the seat
+    # total, the idle count, and the recoverable figure that goes to Finance —
+    # is computed from what is left, because pricing a service account as a seat
+    # somebody holds inflates all three.
+    excluded = config.seat_exclusions(root)
     directory = list(lake.iter_snapshot(root, "directory_users"))
-    seats = {str(u["user_id"]): u for u in directory if u.get("user_id")}
+    seats = {str(u["user_id"]): u for u in directory
+             if u.get("user_id") and str(u["user_id"]) not in excluded}
+    excluded_here = sum(1 for u in directory
+                        if u.get("user_id") and str(u["user_id"]) in excluded)
 
     spenders: set[str] = set()
     spend_by_user: dict[str, float] = {}
@@ -162,6 +171,8 @@ def _seats(root: Path, start: str, end: str) -> JsonObject:
     return {
         "available": True,
         "seats_total": len(seats),
+        "seats_excluded": excluded_here,
+        "seats_note": config.seat_exclusion_note(root, excluded_here),
         "seats_with_spend": len(spenders),
         "seats_silent": len(silent),
         "seats_silent_and_established": len(established),
@@ -174,6 +185,7 @@ def _seats(root: Path, start: str, end: str) -> JsonObject:
             "those can fairly be called idle — the rest may simply be new. The "
             "recoverable figure prices the established group at what an active "
             "seat costs, which is an upper bound on the saving, not a promise."
+            + (" " + config.seat_exclusion_note(root, excluded_here) if excluded_here else "")
         ),
     }
 

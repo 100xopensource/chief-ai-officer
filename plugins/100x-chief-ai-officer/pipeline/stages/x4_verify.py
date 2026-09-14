@@ -90,14 +90,33 @@ def load_verifications(root: Path, run_id: str) -> dict[str, JsonObject]:
     return out
 
 
+def _is_answer(row: JsonObject | None) -> bool:
+    """True only for a row that records somebody's actual reading.
+
+    The worksheet judge writes a placeholder for every passage still waiting to
+    be read, so that the passage survives into the next run. That placeholder
+    carries `awaiting_review` and a verdict of "unsure" — it is a note that
+    nobody has looked yet, not an answer, and anything that treats it as one
+    turns "not read" into a conclusion.
+    """
+    return bool(row) and not row.get("awaiting_review")
+
+
 def resolve(verdict: JsonObject | None,
             verification: JsonObject | None) -> str:
-    """Where one passage ended up, given both passes' answers."""
-    if verdict is None:
+    """Where one passage ended up, given both passes' answers.
+
+    Both arms below used to accept a placeholder as an answer, and both failed
+    in the direction that produces a confident result out of no reading at all:
+    an unread passage came back "cleared" as though the first reader had called
+    it a false alarm, and a passage whose second read had not happened came back
+    "disputed" as though the second reader had disagreed.
+    """
+    if not _is_answer(verdict):
         return STATUS_UNVERIFIED
     if verdict.get("verdict") != VERDICT_REAL:
         return STATUS_CLEARED
-    if verification is None:
+    if not _is_answer(verification):
         return STATUS_UNVERIFIED
     return (STATUS_CONFIRMED if verification.get("verdict") == VERDICT_REAL
             else STATUS_DISPUTED)
@@ -118,11 +137,19 @@ def verify(root: Path, run_id: str, *, judge_name: str = "demo",
     if not resume:
         out_path.unlink(missing_ok=True)
 
-    already = load_verifications(root, run_id) if resume else {}
+    # A placeholder is not a second read, so it must not count as one when
+    # deciding what is left to do. Without this filter the worksheet flow could
+    # never complete: the first `verify` run wrote a placeholder for every
+    # passage, the second run saw them and concluded there was nothing pending,
+    # and the reviewer's answers were never read back — permanently, because the
+    # placeholders persist. A person following the documented human-review path
+    # got zero confirmed findings no matter what they wrote.
+    already = {block_id for block_id, row in load_verifications(root, run_id).items()
+               if _is_answer(row)} if resume else set()
 
-    # Only what x3 called real is worth a second read.
+    # Only what x3 actually read and called real is worth a second read.
     claimed = [block_id for block_id, row in verdicts.items()
-               if row.get("verdict") == VERDICT_REAL]
+               if _is_answer(row) and row.get("verdict") == VERDICT_REAL]
     pending = [b for b in claimed if b not in already]
     batch = pending[:limit] if limit else pending
 
@@ -198,6 +225,13 @@ def verify(root: Path, run_id: str, *, judge_name: str = "demo",
             "agrees, which is a signature rather than a check."
         ),
     }
+    # A worksheet waiting to be filled in is the state the run is actually in,
+    # and the caller must be told that rather than handed a resolution table
+    # computed over nobody's reading.
+    if getattr(judge, "pending_count", 0):
+        summary["worksheet"] = str(getattr(judge, "path", ""))
+        summary["awaiting_review"] = judge.pending_count
+
     (root / "_reports" / run_id / SUMMARY_FILE).write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return summary

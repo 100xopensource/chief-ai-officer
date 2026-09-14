@@ -122,6 +122,23 @@
 </style>
 </head>
 <body>
+<!-- Shown only where the page cannot draw itself. An email preview pane and
+     most document viewers will not run the render script, so without this the
+     reader gets a blank white page and no reason for it — which is the single
+     most likely next action after "your report is ready". -->
+<noscript>
+  <div style="max-width:40rem;margin:3rem auto;padding:1.5rem;border:1px solid #c9c2b6;
+              border-radius:8px;font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif;
+              color:#2b2b2b;background:#fdfcfa">
+    <p style="margin:0 0 .8rem;font-weight:700">This report has not drawn itself yet.</p>
+    <p style="margin:0 0 .8rem">The page builds its own contents when it is opened in a
+      web browser. You are seeing this because it is being shown somewhere that does not
+      do that — an email preview pane, a chat preview, or a document viewer.</p>
+    <p style="margin:0">Save the file to your computer and open it in a browser. Nothing
+      needs to be installed and nothing is downloaded: the whole report is already inside
+      this file.</p>
+  </div>
+</noscript>
 <div class="wrap">
 
   <header class="mast">

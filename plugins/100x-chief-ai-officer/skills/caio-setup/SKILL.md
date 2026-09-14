@@ -39,11 +39,15 @@ No credentials, no company data, nothing to set up. This invents a fictional
 company and produces all three reports for it:
 
 ```bash
-pip install -e .          # once, from the repository root
-
 caio demo --out data-demo
 caio all  --data-dir data-demo --out-dir _reports
 ```
+
+Check `caio welcome --json` first for how to invoke it on this machine: from a
+checkout, `pip install -e .` once and the above works as written; installed only
+as a plugin, every command becomes
+`python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" …` — written with the variable,
+never the path it expands to, since that directory changes between sessions.
 
 Then open any file in `_reports/`. Everything in them is invented — the company,
 the people, the numbers. It exists so you can see the shape of the thing before
@@ -60,23 +64,37 @@ This needs two things from whoever administers your company's Claude account:
 - **A Compliance API key**, for conversation content. Only needed for the
   Exposure Report. Without it the other two reports still work.
 
-Set whichever you have and pull. The two keys go in **separate** variables —
-each pull resolves its own, so one shared `CAIO_API_KEY` would hand one of them
-a key of the wrong type:
+Read that as "one *or* two", never "both". See below — a Compliance key serves
+everything.
+
+**One key is often all there is, and it is usually enough.** Every pull resolves
+`CAIO_API_KEY` first, so a single key set there serves all of them — a Compliance
+Access Key covers the analytics and directory pulls as well as the conversation
+pull. Two keys are supported, not required.
+
+Do not tell somebody holding one key that they are blocked. That reading of the
+table above is the most common reason a person stops before they have started.
 
 ```bash
-export ANTHROPIC_ADMIN_KEY="sk-ant-admin-..."              # for analytics
-export ANTHROPIC_COMPLIANCE_ACCESS_KEY="sk-ant-api01-..."  # for content
+export CAIO_API_KEY="...the key they were given..."
 
-python3 -m pipeline.fetch.analytics  --data-dir data     # cost and usage
-python3 -m pipeline.fetch.compliance --data-dir data     # conversation content
+caio pull everything --data-dir data     # cost, usage, seats
+caio pull content    --data-dir data     # conversation text, consent-gated
 
 caio all --data-dir data --out-dir _reports
 ```
 
-The pull is separate from the reporting on purpose: pulling touches a network
-and needs credentials, and someone who asked for a report should not get a
-network call they did not ask for.
+If they do have two separate keys and want each pull to use its own, set them
+per-pull instead and leave `CAIO_API_KEY` unset:
+
+```bash
+export ANTHROPIC_ADMIN_KEY="sk-ant-admin-..."              # analytics
+export ANTHROPIC_COMPLIANCE_ACCESS_KEY="sk-ant-api01-..."  # directory and content
+```
+
+The pull is its own command on purpose, and `caio all` never does it: pulling
+touches a network and needs credentials, and someone who asked for a report
+should not get a network call they did not ask for.
 
 ## Before pulling conversation content, read this out loud
 
@@ -101,11 +119,14 @@ dates the run resolves to. It never pulls anything and never fails destructively
 
 | What you see | What it means |
 |---|---|
-| `command not found: caio` | The package is not installed. `pip install -e .` from the repository root, or put `PYTHONPATH=plugins/100x-chief-ai-officer` in front of `python3 -m pipeline.cli`. |
-| `no lake at data` | Nothing has been pulled yet. Run `caio demo`, or pull. |
-| `BLOCKED  Exposure Report` | Conversation content is not in this lake. Pull it, or produce the other two. |
+| `command not found: caio` | The package is not installed. `pip install -e .` from the repository root; from a checkout, `PYTHONPATH=plugins/100x-chief-ai-officer python3 -m pipeline.cli`; **installed only as a plugin, with no `pip`**, `python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"`. Run `caio welcome --json` first and use whichever form it reports — telling somebody to type `caio` when they do not have it is the most common way a first run fails. |
+| the plugin's skills are missing, or the plugin list is empty | It was installed part-way through a session and is not picked up until a new one starts. Tell them to start a new conversation. It is not a failed install and reinstalling will not help. |
+| `no lake at data` | Nothing has been pulled yet. Run `caio demo`, or `caio pull everything`. |
+| `BLOCKED  Exposure Report` | Conversation content is not in this lake. `caio check` prints the command that fixes it, and what the consent gate will ask before it runs. |
 | `does not pass its gates` | The report was written but must not be shared. The failing gate names the reason. Fix the report; there is deliberately no override. |
-| `no API key` | No key in this shell. Analytics wants `ANTHROPIC_ADMIN_KEY`; the content pull wants `ANTHROPIC_COMPLIANCE_ACCESS_KEY`. An Admin key will not serve the content pull, or the other way round. |
+| `no API key` | No key in this shell. Set `CAIO_API_KEY` to whichever key they have — it is resolved first by every pull, so one key serves all of them. |
+| a report arrives as a blank page | It was pasted into an email or opened in a preview pane. The page draws itself when a browser opens it. Save the file and open it in a browser; send reports as attachments. |
+| a figure reads `—` or "cannot be measured" | That is deliberate and must not be reported as zero. The data does not carry what the figure needs; the report names the reason. `caio check` lists anything present-but-the-wrong-shape. |
 | nothing at all happened after installing the plugin | The greeting only speaks once per machine. `caio welcome` prints it, or `CAIO_WELCOME=always` restores it for every session. |
 
 ## What to say when someone asks "is this safe"

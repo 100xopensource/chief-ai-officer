@@ -159,29 +159,13 @@ def findings_for_value(metrics: JsonObject) -> list[JsonObject]:
     out: list[JsonObject] = []
     adoption = metrics.get("adoption", {})
     depth = metrics.get("depth", {})
-    friction = metrics.get("friction", {})
     connectors = metrics.get("connectors", {})
 
-    if friction.get("available") and friction.get("worst") and \
-            friction["worst"]["error_rate_pct"] >= 15:
-        worst = friction["worst"]
-        out.append({
-            "key": f"value/failing-connector/{worst['name']}",
-            "headline": "A data connection is failing often enough that people work around it.",
-            "detail": (
-                f"One connection failed {worst['error_rate_pct']:.0f}% of the time this week "
-                f"— {worst['errors']:,} failures out of {worst['attempts']:,} attempts. "
-                "Nobody files a ticket about this; they go back to doing it by hand, which "
-                "costs more and shows up nowhere. " + friction["threshold_note"]
-            ),
-            "severity": "high" if worst["error_rate_pct"] >= 25 else "medium",
-            "confidence": "measured",
-            "owner": "Platform",
-            "action": "Fix the failing connection, or retire it and say so.",
-            "count_label": f"{worst['error_rate_pct']:.0f}% of calls failed",
-            "measure": worst["error_rate_pct"],
-            "direction": "down_is_better",
-        })
+    # There was a "this connection is failing" finding here. It was computed
+    # from a failure count no data source publishes, so it could only ever have
+    # fired on the demo fixture. Abandonment, below, is the signal that survives:
+    # a connection people stop reaching for is the same story told by data that
+    # exists.
 
     if connectors.get("available") and connectors.get("faded"):
         faded = connectors["faded"][0]
@@ -189,15 +173,15 @@ def findings_for_value(metrics: JsonObject) -> list[JsonObject]:
             "key": f"value/abandoned/{faded['name']}",
             "headline": "Something people relied on is being abandoned quietly.",
             "detail": (
-                f"One data connection went from about {faded['was_weekly_calls']:,} calls a "
-                f"week to {faded['now_calls']:,}. " + connectors["faded_note"]
+                f"One data connection went from about {faded['was_weekly_sessions']:,} "
+                f"sessions a week to {faded['now_sessions']:,}. " + connectors["faded_note"]
             ),
             "severity": "medium",
             "confidence": "measured",
             "owner": "Head of AI",
             "action": "Ask the people who stopped using it why, before the capability is lost.",
-            "count_label": f"down to {faded['now_calls']:,} calls",
-            "measure": faded["now_calls"],
+            "count_label": f"down to {faded['now_sessions']:,} sessions",
+            "measure": faded["now_sessions"],
             "direction": "up_is_better",
         })
 
@@ -210,12 +194,16 @@ def findings_for_value(metrics: JsonObject) -> list[JsonObject]:
                 "connections in use appear under a bare identifier rather than a product "
                 "name. They may be entirely legitimate. The finding is that nobody can "
                 "currently say which, and a connection nobody can name is a connection "
-                "nobody is reviewing."
+                "nobody is reviewing. The largest of them reached "
+                f"{connectors.get('unnamed_largest_sessions', 0):,} session(s) this week. "
+                "Nothing in this data can resolve the identifier to a name — it is all "
+                "the source publishes — so the name has to come from the admin console once."
             ),
             "severity": "medium",
             "confidence": "measured",
             "owner": "IT",
-            "action": "Attach an owner and a readable name to each in the admin settings.",
+            "action": ("Look each one up in the admin console and record it in the "
+                       "connection alias file, so every future report names it."),
             "count_label": f"{connectors['unnamed_count']} unnamed",
             "measure": connectors["unnamed_count"],
             "direction": "down_is_better",

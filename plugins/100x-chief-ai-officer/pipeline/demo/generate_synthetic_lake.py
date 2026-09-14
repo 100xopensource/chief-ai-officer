@@ -112,6 +112,12 @@ MODELS = [
 ]
 PRODUCTS = ["chat", "claude_code", "cowork", "office_agent", "claude_design"]
 
+# (name, rate at which its tool calls come back as errors, week index it is born).
+#
+# The error rate does NOT reach the analytics tables — the analytics API
+# publishes no failure data for connectors at all, and inventing some here is
+# exactly the mistake this fixture once made. It drives `is_error` on tool
+# blocks in the conversation content, which is a real field of a real source.
 CONNECTORS = [
     ("northwind_bi", 0.34, 7),   # born in week index 7 — the birth-date trap
     ("warehouse_sql", 0.06, 0),
@@ -121,6 +127,12 @@ CONNECTORS = [
     ("file_creation", 0.01, 0),
     ("crm_connect", 0.08, 2),
     ("a3f19c2e-7b40-4d81-9e55-2c6f0a1b8d33", 0.02, 5),  # unnamed: a shadow connector
+    # The same connector, arriving under two identities. A real lake does this:
+    # one connector reports by name for most of its life and by bare identifier
+    # for a few days, and anything counting connections counts it twice. Only an
+    # operator can say they are the same thing, which is what the alias map in
+    # _reports/config/connector_aliases.json is for.
+    ("6f616b42-0ed8-571e-823f-ee4aca6b7ce9", 0.06, 9),  # = warehouse_sql
 ]
 
 SKILLS = [
@@ -433,25 +445,37 @@ class Generator:
             "cowork_monthly_active_user_count": max(0, dau // 3),
         }
 
+    # Both of the rows below are shaped to match `pipeline.fetch.analytics`'s
+    # `flatten_connector` / `flatten_skill` exactly — field for field, including
+    # the nulls that appear when a product reports nothing for that day.
+    #
+    # This fixture used to emit read_call_count / write_call_count /
+    # error_call_count / invocation_count, none of which the live API returns.
+    # The metric stages were written against it and read those fields in
+    # production, where they were absent, so every connector summed to zero and
+    # the report published "0% of connector calls failed" over a source that
+    # publishes no failure data at all. A fixture that is easier to compute
+    # against than the real thing is not a fixture, it is a second product.
+
     def _connector_rows(self, day: str, week_index: int, active: int) -> list[JsonObject]:
         rows = []
-        for name, error_rate, born_week in CONNECTORS:
+        for name, _error_rate, born_week in CONNECTORS:
             if week_index < born_week:
                 continue  # the birth-date trap, planted deliberately
-            calls = max(0, int(self.rng.gauss(active * 0.5, active * 0.2)))
-            if calls == 0:
+            reach = max(0, int(self.rng.gauss(active * 0.12, active * 0.05)))
+            if reach == 0:
                 continue
-            errors = int(calls * error_rate * self.rng.uniform(0.6, 1.4))
+            chat = max(0, int(self.rng.gauss(reach * 1.4, 2)))
+            cowork = max(0, reach // 4)
             rows.append({
                 "day": day, "connector_name": name,
-                "distinct_user_count": max(1, calls // 6),
-                "read_call_count": calls - errors,
-                "write_call_count": self.rng.randint(0, 3),
-                "unclassified_call_count": 0,
-                "error_call_count": errors,
-                "chat_distinct_conversation_used": max(1, calls // 8),
+                "distinct_user_count": reach,
+                "chat_distinct_conversation_used": chat,
                 "cc_distinct_session_used": None,
-                "cowork_distinct_session_used": max(0, calls // 20),
+                "cowork_distinct_session_used": cowork,
+                "office_metrics": {
+                    "excel": {"distinct_session_connector_used_count": max(0, reach // 8)},
+                },
             })
         return rows
 
@@ -460,14 +484,16 @@ class Generator:
         for skill in SKILLS:
             if self.rng.random() > 0.55:
                 continue
+            reach = max(1, int(self.rng.gauss(active * 0.08, 2)))
             rows.append({
                 "day": day, "skill_name": skill,
-                "distinct_user_count": max(1, int(self.rng.gauss(active * 0.08, 2))),
-                "invocation_count": max(1, int(self.rng.gauss(active * 0.15, 4))),
-                "enable_count": self.rng.randint(0, 3),
-                "chat_distinct_conversation_used": max(1, active // 12),
+                "distinct_user_count": reach,
+                "chat_distinct_conversation_used": max(1, int(self.rng.gauss(reach * 1.6, 2))),
                 "cc_distinct_session_used": None,
                 "cowork_distinct_session_used": None,
+                "office_metrics": {
+                    "docx": {"distinct_session_skill_used_count": max(0, reach // 6)},
+                },
             })
         return rows
 
