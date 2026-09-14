@@ -291,6 +291,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
         log(f"verify: {result['error']}")
         return 1
 
+    # The same two-step the first pass has: a worksheet is written, a person
+    # fills it in, the same command reads it back. Printing a resolution table
+    # here instead told people the second reader had disagreed with everything,
+    # when the second reader had not yet read anything.
+    if result.get("awaiting_review"):
+        log(f"Wrote {result['worksheet']} — {result['awaiting_review']} passage(s) "
+            "for the second read.")
+        log("This pass must not see the first pass's answers, so the worksheet "
+            "carries the passages and nothing else.")
+        log("Fill in each VERDICT line, then run this again to read it back.")
+        return 0
+
     statuses = result["statuses"]
     log(f"{statuses['confirmed']:,} confirmed, {statuses['disputed']:,} disputed, "
         f"{statuses['cleared']:,} cleared, {statuses['unverified']:,} still unread.")
