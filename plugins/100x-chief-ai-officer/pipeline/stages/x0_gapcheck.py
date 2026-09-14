@@ -274,9 +274,11 @@ def gapcheck(root: Path, as_of: date | None = None) -> JsonObject:
         "shape_broken": [r for r in shape if not r["ok"]],
         "coverage": coverage,
         "decisions": decisions,
+        "decisions_broken": [d["file"] for d in decisions if d.get("error")],
         "clear": [k for k, r in reports.items() if r["status"] == "clear"],
         "blocked": blocked,
-        "summary": _summary(reports, stale, root),
+        "summary": _summary(reports, stale, root,
+                            [d["file"] for d in decisions if d.get("error")]),
     }
 
 
@@ -357,10 +359,18 @@ def _english_list(items: list[str]) -> str:
     return ", ".join(items[:-1]) + f" and {items[-1]}"
 
 
-def _summary(reports: dict[str, JsonObject], stale: list[JsonObject], root: Path) -> str:
+def _summary(reports: dict[str, JsonObject], stale: list[JsonObject], root: Path,
+             broken_config: list[str] | None = None) -> str:
     if not root.exists():
         return (f"No lake at {root}. Nothing can be reported until data is pulled, or "
                 "until a synthetic lake is generated to try the tools on.")
+    # A config that will not parse stops every build, so nothing is ready to run
+    # regardless of what the data can answer. Saying "ready" above a BROKEN line
+    # would make this command contradict itself, and the build contradict it.
+    if broken_config:
+        return (f"{_english_list(broken_config)} will not parse, so no report can be "
+                "built until it is fixed. Nothing else here has been ruled out; the "
+                "config is simply read first.")
     clear = [r["title"] for r in reports.values() if r["status"] == "clear"]
     blocked = [r["title"] for r in reports.values() if r["status"] == "blocked"]
     parts = []
@@ -429,7 +439,15 @@ def render_human(result: JsonObject) -> str:
         lines.append("")
         lines.append("  Standing decisions being honoured:")
         for entry in in_force:
-            lines.append(f"    {entry['file']:<26} {entry.get('entries', 0)} entry(s)")
+            # A file that will not parse must never print as "0 entry(s)". That
+            # is indistinguishable from a file recording no exclusions, and it
+            # is wrong in the reassuring direction: the run that follows refuses
+            # to build, and this is the command meant to have said why.
+            if entry.get("error"):
+                lines.append(f"    {entry['file']:<26} BROKEN — it will stop the next build")
+                lines.append(f"      {entry['error']}")
+            else:
+                lines.append(f"    {entry['file']:<26} {entry.get('entries', 0)} entry(s)")
 
     if result["stale"]:
         lines.append("")

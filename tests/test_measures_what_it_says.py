@@ -486,3 +486,89 @@ def test_check_names_a_dataset_that_is_present_but_the_wrong_shape(tmp_path_fact
     printed = x0_gapcheck.render_human(x0_gapcheck.gapcheck(root, W.resolve_as_of(root)))
     assert "Present but the wrong shape" in printed
     assert "analytics_skills" in printed
+
+
+# --------------------------------------------------------------------------
+# a broken config is not an empty one
+#
+# The build refuses a config that will not parse, and says so clearly. `caio
+# check` — the cheap command whose whole job is to find that out first — showed
+# it as "0 entry(s)" and reported everything ready to run. Zero exclusions and
+# an unreadable exclusion file are opposite situations that looked identical,
+# and the one that looked fine was the broken one.
+# --------------------------------------------------------------------------
+
+def _break_config(root, name="seat_exclusions.json"):
+    path = config.config_dir(root)
+    path.mkdir(parents=True, exist_ok=True)
+    (path / name).write_text('{"excluded": [{"user_id": "u1",}]}', encoding="utf-8")
+
+
+def test_check_reports_a_config_it_cannot_parse(tmp_path_factory):
+    root = tmp_path_factory.mktemp("brokencfg")
+    generator = demo.Generator(root, seed=SEED, weeks=WEEKS)
+    generator.build_directory()
+    generator.write_directory()
+    generator.write_analytics()
+    generator.write_state()
+
+    clean = x0_gapcheck.gapcheck(root, W.resolve_as_of(root))
+    assert not clean.get("decisions_broken")
+
+    _break_config(root)
+    result = x0_gapcheck.gapcheck(root, W.resolve_as_of(root))
+
+    assert result["decisions_broken"] == ["seat_exclusions.json"]
+    printed = x0_gapcheck.render_human(result)
+    assert "BROKEN" in printed
+    assert "0 entry(s)" not in printed, (
+        "an unreadable config printed as though it recorded no exclusions"
+    )
+    assert "Ready to run" not in result["summary"], (
+        "the summary promised reports the next build will refuse to produce"
+    )
+
+
+def test_a_broken_config_stops_the_build_it_was_promised_to(tmp_path_factory):
+    """The two must agree: whatever check says, the build must do."""
+    root = tmp_path_factory.mktemp("brokencfg2")
+    generator = demo.Generator(root, seed=SEED, weeks=WEEKS)
+    generator.build_directory()
+    generator.write_directory()
+    generator.write_analytics()
+    generator.write_state()
+    _break_config(root)
+
+    with pytest.raises(ValueError, match="records a decision"):
+        x2_metrics_waste.compute(root, _window(root))
+
+
+# --------------------------------------------------------------------------
+# two connections that cannot be named are still two different connections
+# --------------------------------------------------------------------------
+
+def test_connections_with_no_name_are_told_apart(lake_root):
+    """They render as the same words, so a reader sees two identical rows and
+    cannot carry out the action the report gives them — look each one up."""
+    connectors = x2_metrics_value.compute(lake_root, _window(lake_root))["connectors"]
+    assert connectors["unnamed_count"] >= 2, "fixture no longer exercises this"
+
+    labels = compose._connector_labels(connectors)
+    assert len(labels) == len(set(labels)), f"duplicate row labels: {labels}"
+
+    unnamed = [l for l, c in zip(labels, connectors["in_use"]) if c["unnamed"]]
+    assert all(l.startswith("unnamed connection ") for l in unnamed), unnamed
+    # No identifier may reach the label — that is what the privacy gate is for.
+    for label, entry in zip(labels, connectors["in_use"]):
+        if entry["unnamed"]:
+            assert entry["name"] not in label
+
+
+def test_a_single_unnamed_connection_still_reads_as_prose():
+    """Numbering exists to disambiguate. With nothing to disambiguate from, the
+    plain wording is better and is what the reader gets."""
+    connectors = {"in_use": [{"name": "warehouse_sql", "unnamed": False, "sessions": 5},
+                             {"name": "a3f19c2e-7b40-4d81-9e55-2c6f0a1b8d33",
+                              "unnamed": True, "sessions": 3}]}
+    assert compose._connector_labels(connectors) == [
+        "warehouse_sql", "an unnamed connection"]

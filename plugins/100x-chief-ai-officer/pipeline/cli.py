@@ -67,6 +67,7 @@ if __package__ in (None, ""):
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,13 +89,32 @@ REPORTS = ("waste", "value", "exposure")
 def invoked_as() -> str:
     """How this run was started, so a printed next step is one the reader can paste.
 
-    The package is usable two ways — installed, as `caio`, or from a checkout as
-    `python3 -m pipeline.cli`. Printing the wrong one is a small thing that
-    wastes somebody's first ten minutes, which is exactly the failure this
-    project keeps finding in its own documentation.
+    Three ways, not two:
+
+      installed          `caio`
+      from a checkout    `python3 -m pipeline.cli`, with the plugin on PYTHONPATH
+      a plugin only      the command file's own path
+
+    The third was answered with the second, which is wrong in the one case that
+    matters most: somebody who installed from the marketplace has no checkout
+    and nothing on PYTHONPATH, so `python3 -m pipeline.cli` fails. They were
+    being handed it as the next step immediately after a command that had just
+    worked — the same "documented command does not run" failure this project
+    keeps finding in itself.
+
+    Written as $CLAUDE_PLUGIN_ROOT rather than the path it expands to, because
+    that directory is session-scoped: a resolved path is correct once and then
+    silently wrong.
     """
-    name = Path(sys.argv[0]).name
-    return "caio" if name == "caio" else "python3 -m pipeline.cli"
+    argv0 = Path(sys.argv[0])
+    if argv0.name == "caio":
+        return "caio"
+    if argv0.name == "cli.py":
+        told = os.environ.get("CLAUDE_PLUGIN_ROOT")
+        if told and argv0.resolve() == (Path(told) / "pipeline" / "cli.py").resolve():
+            return 'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"'
+        return f'python3 "{argv0}"'
+    return "python3 -m pipeline.cli"
 
 
 def log(message: str) -> None:
@@ -316,7 +336,9 @@ def cmd_check(args: argparse.Namespace) -> int:
           else x0_gapcheck.render_human(result))
     if not result["lake_exists"]:
         return 2
-    return 1 if result["blocked"] else 0
+    # A config file that will not parse stops the next build. This command
+    # exists to find that out cheaply, so it must not report it as success.
+    return 1 if (result["blocked"] or result.get("decisions_broken")) else 0
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
@@ -464,13 +486,16 @@ def cmd_all(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        prog="pipeline.cli",
+        # Named after however this run was actually started, so the usage line
+        # and every error message quote a command the reader can paste back.
+        # Hardcoding it showed `pipeline.cli` to somebody who typed `caio`.
+        prog=invoked_as(),
         description="100x Chief AI Officer — read your own Claude usage, produce three reports.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Start here. No credentials, no real data, two commands:\n"
-            "    caio demo --out data-demo\n"
-            "    caio all --data-dir data-demo --out-dir _reports\n"
+            f"    {invoked_as()} demo --out data-demo\n"
+            f"    {invoked_as()} all --data-dir data-demo --out-dir _reports\n"
         ),
     )
     sub = ap.add_subparsers(dest="command", required=True)

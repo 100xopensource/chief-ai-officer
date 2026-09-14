@@ -350,3 +350,44 @@ def test_one_key_is_enough_and_the_page_says_so():
     text = welcome.message(welcome.detect())
     assert "Either works on its own" in text
     assert "Two keys are supported, not required" in text
+
+
+def test_the_next_step_a_plugin_run_prints_is_one_that_runs(monkeypatch, tmp_path):
+    """Every command prints a next step. In a marketplace install that step was
+    `python3 -m pipeline.cli`, which fails there — no checkout, nothing on
+    PYTHONPATH. It was handed to the reader immediately after a command that had
+    just worked, which is the exact shape of failure this project keeps finding
+    in its own instructions."""
+    from pipeline import cli
+
+    plugin = tmp_path / "plugin_xyz"
+    (plugin / "pipeline").mkdir(parents=True)
+    script = plugin / "pipeline" / "cli.py"
+    script.write_text("", encoding="utf-8")
+
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(plugin))
+    monkeypatch.setattr(cli.sys, "argv", [str(script), "demo"])
+    assert cli.invoked_as() == 'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"'
+
+    # Run from a path that is not the declared plugin root: name the real file
+    # rather than a variable that points somewhere else.
+    other = tmp_path / "elsewhere" / "pipeline"
+    other.mkdir(parents=True)
+    (other / "cli.py").write_text("", encoding="utf-8")
+    monkeypatch.setattr(cli.sys, "argv", [str(other / "cli.py"), "demo"])
+    assert cli.invoked_as() == f'python3 "{other / "cli.py"}"'
+
+
+def test_the_installed_and_checkout_forms_are_unchanged(monkeypatch):
+    from pipeline import cli
+    monkeypatch.setattr(cli.sys, "argv", ["/usr/local/bin/caio", "demo"])
+    assert cli.invoked_as() == "caio"
+    monkeypatch.setattr(cli.sys, "argv", ["-m", "demo"])
+    assert cli.invoked_as() == "python3 -m pipeline.cli"
+
+
+def test_help_names_the_command_the_reader_typed(monkeypatch, capsys):
+    """`caio --help` used to answer `usage: pipeline.cli`."""
+    from pipeline import cli
+    monkeypatch.setattr(cli.sys, "argv", ["/usr/local/bin/caio"])
+    assert cli.build_parser().format_usage().startswith("usage: caio")

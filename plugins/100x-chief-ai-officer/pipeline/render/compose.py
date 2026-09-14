@@ -284,9 +284,16 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
             depth.get("reader_note",
                       "Depth of use cannot be measured: no per-person activity in this window."),
 
+            # The bottom line gets three paragraphs and a reader with three
+            # minutes. The full account of what this source cannot answer is
+            # worth saying, but it is said once, in the watch grid below; pasting
+            # it here too turned the one paragraph about friction into four
+            # topics and buried the finding that actually moved.
             ((connectors.get("faded_note", "") if connectors.get("available")
               else "Nothing measurable is getting in the way this week.").strip()
-             + " " + reliability["reader_note"]).strip()
+             + " Whether a connection failed is not something this data can say, "
+               "so no reliability figure appears anywhere in this report — which "
+               "is not the same as nothing having failed.").strip()
             + " " + coverage.get("reader_note", ""),
         ],
         "stats": [
@@ -314,8 +321,15 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
             # of health. What replaced it is measured from data that exists.
             {"value": (f"{len(connectors['faded'])}" if connectors.get("available") else "—"),
              "label": "Connections people stopped reaching for",
-             "sub": "Used half as often as their own earlier average, or less. Nothing "
-                    "errors and nothing alerts; people go back to doing it by hand."},
+             # Zero findings is a result here as everywhere, but a bare "0" over
+             # a definition reads as though the measurement had not run. Say
+             # which of the two it is.
+             "sub": (("Used half as often as their own earlier average, or less. Nothing "
+                      "errors and nothing alerts; people go back to doing it by hand."
+                      if connectors["faded"] else
+                      "None this week: nothing in use dropped to half its own earlier "
+                      "average or below.")
+                     if connectors.get("available") else "")},
         ],
         "trend": _trend(m.get("trend")),
         "verifline": (
@@ -355,9 +369,9 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
         "reconciliation": ({
             "connector_sessions": {
                 "total": sum(c["sessions"] for c in connectors["in_use"]),
-                "parts": [{"label": ("an unnamed connection" if c["unnamed"] else c["name"]),
-                           "value": c["sessions"]}
-                          for c in connectors["in_use"]],
+                "parts": [{"label": label, "value": c["sessions"]}
+                          for label, c in zip(_connector_labels(connectors),
+                                              connectors["in_use"])],
                 "explained": None,
             }
         } if connectors.get("available") else {}),
@@ -366,6 +380,32 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
         "footer_note": FOOTER,
     })
     return block
+
+
+def _connector_labels(connectors: JsonObject) -> list[str]:
+    """What each connection is called in the report, in rank order.
+
+    A connection that reports under a bare identifier cannot be named — the
+    identifier is all the source publishes, and the privacy gate rightly keeps
+    it out of a shareable report. But rendering every one of them as the same
+    words leaves a reader with two rows reading "an unnamed connection", no way
+    to tell which is which, and an action ("look it up in the admin console")
+    they cannot carry out against either.
+
+    So they are numbered when there is more than one. The number is a position
+    in this week's table and nothing else — it identifies no account and
+    survives no further than the page.
+    """
+    unnamed_total = sum(1 for c in connectors["in_use"] if c["unnamed"])
+    labels, seen = [], 0
+    for entry in connectors["in_use"]:
+        if not entry["unnamed"]:
+            labels.append(entry["name"])
+            continue
+        seen += 1
+        labels.append("an unnamed connection" if unnamed_total == 1
+                      else f"unnamed connection {seen}")
+    return labels
 
 
 def _scoreboard(connectors: JsonObject) -> JsonObject | None:
@@ -385,8 +425,7 @@ def _scoreboard(connectors: JsonObject) -> JsonObject | None:
         return None
 
     rows = []
-    for entry in connectors["in_use"]:
-        name = "an unnamed connection" if entry["unnamed"] else entry["name"]
+    for name, entry in zip(_connector_labels(connectors), connectors["in_use"]):
         change = entry["change_pct"]
         if change is None:
             # Two different absences, told apart. One string for both let a data
