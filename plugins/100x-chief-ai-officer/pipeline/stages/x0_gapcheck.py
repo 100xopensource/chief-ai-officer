@@ -302,7 +302,7 @@ REMEDY = {
         "people wrote. It is deliberately gated: the first run stops, explains "
         "what will be stored and where, and asks for the name of the person "
         "accountable for the decision, which is saved next to the data.\n"
-        "         To start that:  caio pull content --data-dir {root}"
+        "{indent}To start that:  caio pull content --data-dir {root}"
     ),
     "dim_chat": "Comes with the conversation pull:  caio pull content --data-dir {root}",
     "fact_message": "Comes with the conversation pull:  caio pull content --data-dir {root}",
@@ -318,16 +318,20 @@ REMEDY = {
 }
 
 
-def _remedy(missing: list[str], root: Path) -> str:
-    """The command that fixes it, deduplicated, or nothing if we cannot say."""
+def _remedy(missing: list[str], root: Path, indent: str = " " * 11) -> str:
+    """The command that fixes it, deduplicated, or nothing if we cannot say.
+
+    `indent` lines continuation lines up under the first, which sits at a
+    different column in the printed check than in a report's own reader note.
+    """
     seen: list[str] = []
     for dataset in missing:
         text = REMEDY.get(dataset)
         if text:
-            text = text.format(root=root)
+            text = text.format(root=root, indent=indent)
             if text not in seen:
                 seen.append(text)
-    return "\n         ".join(seen)
+    return ("\n" + indent).join(seen)
 
 
 def _reader_note(spec: JsonObject, missing: list[str], thin: list[str],
@@ -337,8 +341,9 @@ def _reader_note(spec: JsonObject, missing: list[str], thin: list[str],
         note = (f"The {spec['title']} cannot be produced: "
                 f"{_english_list(missing)} {'is' if len(missing) == 1 else 'are'} "
                 "not in this lake.")
-        remedy = _remedy(missing, root or Path("data"))
-        return f"{note}\n         {remedy}" if remedy else f"{note} Pull it, then run again."
+        indent = " " * 9
+        remedy = _remedy(missing, root or Path("data"), indent)
+        return f"{note}\n{indent}{remedy}" if remedy else f"{note} Pull it, then run again."
     if thin:
         return (f"The {spec['title']} can be produced, but without "
                 f"{_english_list(thin)} it answers less than it could. "
