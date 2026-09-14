@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -109,6 +110,7 @@ def detect(cwd: Path | None = None) -> JsonObject:
     return {
         "repo_root": str(root) if root else None,
         "installed": command_is_available(),
+        "plugin_root": plugin_root(),
         "examples_dir": str(examples) if examples and examples.is_dir() else None,
         "lakes": lakes,
         "reports": reports,
@@ -121,16 +123,44 @@ def detect(cwd: Path | None = None) -> JsonObject:
 def _run(state: JsonObject, command: str) -> str:
     """A command line the reader can paste, given how the package is reachable.
 
-    Installed, it is `caio`. In a checkout that has not been installed yet, the
-    same thing is a module path with `PYTHONPATH` in front of it. Printing the
-    first to somebody who has only the second is the single most common way a
-    first run fails.
+    Three ways, and the wrong one is the single most common way a first run
+    fails:
+
+      installed          `caio …`
+      a checkout         a module path with PYTHONPATH in front of it
+      a plugin only      the command file, by way of $CLAUDE_PLUGIN_ROOT
+
+    The third used to print `caio …` to people who did not have `caio`, because
+    "not a checkout" was read as "must be installed". Somebody who installed the
+    plugin from the marketplace and never ran pip has neither, and the first
+    thing the documentation told them to type did not work.
+
+    It is written as $CLAUDE_PLUGIN_ROOT rather than the path it currently
+    expands to, deliberately. That directory is session-scoped — it changes
+    between sessions — so a resolved path is correct exactly once and then
+    silently wrong, which is worse than no path at all. The variable is right
+    every time.
     """
     if state.get("installed"):
         return f"caio {command}"
     if state.get("repo_root"):
         return f"PYTHONPATH={PLUGIN_DIR} python3 -m pipeline.cli {command}"
+    if state.get("plugin_root"):
+        return f'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" {command}'
     return f"caio {command}"
+
+
+def plugin_root() -> str | None:
+    """Where Claude put this plugin, if it is running as one.
+
+    Only returned when the directory actually holds the command file — the
+    variable can be set to something stale, and pointing somebody at a path that
+    does not work is the failure this is here to prevent.
+    """
+    told = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if told and (Path(told) / "pipeline" / "cli.py").is_file():
+        return told
+    return None
 
 
 def what_it_is() -> list[str]:
@@ -194,9 +224,24 @@ def look_at_an_example(state: JsonObject) -> list[str]:
                 "Rather not install anything? Every command also works as",
                 f"`PYTHONPATH={PLUGIN_DIR} python3 -m pipeline.cli …` from the",
                 "repository root."]
+    elif state.get("plugin_root"):
+        # Installed as a plugin and nothing else. There is no checkout to cd
+        # into and no `caio` on the path, so the commands run out of the plugin
+        # directory — and are written with the variable rather than the path it
+        # expands to, because that directory changes between sessions.
+        out += ["```bash",
+                'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" demo --out data-demo',
+                'python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" all  --data-dir data-demo '
+                '--out-dir _reports',
+                "```",
+                "",
+                "No `git`, no install, nothing to download — the plugin is already on",
+                "disk. Prefer to type `caio` instead? `pip install "
+                f"{REPO_URL}/archive/refs/heads/main.zip` once, and every command below",
+                "loses its prefix."]
     else:
         # No checkout on this machine at all, so the first step is getting one.
-        out += ["```bash", f"git clone {REPO_URL}.git", "cd 100x-chief-ai-officer",
+        out += ["```bash", f"git clone {REPO_URL}.git", "cd chief-ai-officer",
                 "pip install -e .", "", "caio demo --out data-demo",
                 "caio all  --data-dir data-demo --out-dir _reports", "```"]
     return out
@@ -213,7 +258,11 @@ def connect_your_own_data(state: JsonObject) -> list[str]:
         "- an **Admin API key** — the cost and usage numbers. Two of the three reports.",
         "- a **Compliance API key** — what people actually wrote. The Exposure Report only.",
         "",
-        "Either works on its own; you do not need both to start.",
+        "**Either works on its own, and one key is often all there is.** A Compliance",
+        "Access Key serves the cost and usage pulls as well as the conversation pull, so",
+        "if your administrator gave you a single key, set it as `CAIO_API_KEY` and start.",
+        "Two keys are supported, not required — reading the table above as \"I need both\"",
+        "is the most common reason somebody decides they are blocked when they are not.",
         "",
         "Ask me to *walk you through setup* and I will do it a step at a time,",
         "including what to say when you ask your administrator for a key.",
@@ -292,6 +341,12 @@ def brief_for_claude(state: JsonObject | None = None) -> str:
         "Do not run anything, pull anything or build anything until they pick. "
         "Use the caio-setup skill once they do.",
         "",
+        "If the skills or this plugin's commands are not reachable in this session — "
+        "an empty plugin list, or a skill that errors although the files are on disk — "
+        "the plugin was installed part-way through a session and is not picked up until "
+        "a new one starts. Tell them to start a new conversation; it is not a failed "
+        "install and reinstalling will not help. Nothing they have done is lost.",
+        "",
         "What is true of this machine right now:",
     ]
 
@@ -301,6 +356,13 @@ def brief_for_claude(state: JsonObject | None = None) -> str:
         lines.append("- not installed yet; there is a checkout at "
                      f"{state['repo_root']}, so `pip install -e .` from there, or "
                      f"`PYTHONPATH={PLUGIN_DIR} python3 -m pipeline.cli`")
+    elif state.get("plugin_root"):
+        lines.append(
+            "- the `caio` command is NOT installed and there is no checkout. Run "
+            'everything as `python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" <command>`. '
+            "Write it with the variable, never the path it currently expands to: that "
+            "directory is session-scoped and a resolved path is correct once and then "
+            "silently wrong. Do not tell them to type `caio` — it will not be found.")
     else:
         lines.append("- the `caio` command is not installed and there is no checkout "
                      f"in this directory. The repository is {REPO_URL}")

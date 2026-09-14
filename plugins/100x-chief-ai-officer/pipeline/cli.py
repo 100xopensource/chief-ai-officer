@@ -27,14 +27,18 @@ Every stage still runs on its own:
 What it will not do
 -------------------
 It will not pull data. Pulling needs credentials and touches a network, and
-bundling that into the same command as "produce the reports" means a person
-who wanted a report gets a network call they did not ask for. Pull explicitly:
+bundling that into the same command as "produce the reports" means a person who
+wanted a report gets a network call they did not ask for. So pulling is asked
+for by name:
 
-    python3 -m pipeline.fetch.analytics  --data-dir data
-    python3 -m pipeline.fetch.compliance --data-dir data
+    caio pull analytics --data-dir data    # cost and usage
+    caio pull content   --data-dir data    # conversation text, consent-gated
 
-(Those stay as module paths deliberately: pulling touches a network and needs
-credentials, and it should not look like the same kind of thing as `caio all`.)
+That rule was right and the way it was expressed was not. There was no pull
+command at all, on the reasoning that a module path would not be mistaken for
+`caio all` — which is true, and also meant the documented weekly routine was two
+commands, one of which was not a command. Separating the two is a matter of
+asking for it by name, not of withholding a name to ask by.
 
 It will not write a report that fails its gates. A stage that fails stops the
 run for that report and says why; the other reports still finish, because one
@@ -44,6 +48,7 @@ Commands
 --------
     welcome    what this is and what to do next, in plain English
     demo       invent a company to try the tools on, with no credentials
+    pull       download your own account's data into the lake
     check      what this lake can answer, and what it is missing
     scan       sweep conversation content for sensitive-data patterns
     judge      read the flagged passages and judge them
@@ -146,6 +151,94 @@ def cmd_demo(args: argparse.Namespace) -> int:
     log(f"Done. Everything in {root} is invented — the company, the people, the numbers.")
     log(f"Now build the reports:  {invoked_as()} all --data-dir {root}")
     return 0
+
+
+# What each `pull` target does, and which module actually does it. The mapping
+# is here rather than in prose because "run this module path" is not a user
+# interface — somebody who wants this week's numbers should not have to be told
+# the package layout to get them.
+PULL_TARGETS = {
+    "analytics": ("pipeline.fetch.analytics", "cost and usage numbers",
+                  "Waste Ledger, Value X-Ray"),
+    "directory": ("pipeline.fetch.directory", "who holds a seat",
+                  "the seat counts in both cost reports"),
+    "content": ("pipeline.fetch.compliance", "the text of conversations",
+                "Exposure Report"),
+}
+
+
+def cmd_pull(args: argparse.Namespace) -> int:
+    """Download your own account's data into the lake.
+
+    Kept a separate command from `all`, and never run by it: somebody who asked
+    for a report should not get a network call they did not ask for. That was
+    always the rule, and it was right. What was wrong was expressing it by
+    having no command at all, so the only way to refresh data was to know a
+    module path — which meant the documented weekly routine was two commands,
+    one of which was not a command.
+
+    `content` is the conversation pull, and is gated on a recorded consent
+    decision with a person's name on it. That gate lives in the fetch module,
+    not here, so it cannot be bypassed by choosing a different entry point.
+    """
+    targets = (["analytics", "directory"] if args.target == "everything"
+               else [args.target])
+
+    if args.target == "everything":
+        log("Pulling cost, usage and directory. Conversation content is not "
+            "included — it needs a recorded consent decision, so it is always "
+            f"asked for by name:  {invoked_as()} pull content")
+        log("")
+
+    failed = []
+    for target in targets:
+        module, what, unlocks = PULL_TARGETS[target]
+        log(f"── pulling {what} ──────────────────────────────")
+        if _run_fetch(module, args) != 0:
+            failed.append(target)
+            log(f"  FAIL   {target}: nothing was written. {unlocks} will stay blocked.")
+
+    if failed:
+        log("")
+        log("Nothing above was written.")
+        log("")
+        log("If the message above says a key is not set: one key covers all of this.")
+        log("Set CAIO_API_KEY to whichever key your Claude administrator gave you —")
+        log("a Compliance Access Key serves the analytics and directory pulls as well")
+        log("as the conversation pull. Two separate keys are supported, not required:")
+        log("")
+        log('    export CAIO_API_KEY="...the key you were given..."')
+        log("")
+        log(f"Then run the same command again. {invoked_as()} welcome explains the rest.")
+        return 1
+
+    log("")
+    log(f"Now see what it can answer:  {invoked_as()} check --data-dir {args.data_dir}")
+    return 0
+
+
+def _run_fetch(module: str, args: argparse.Namespace) -> int:
+    """Hand off to a fetch module, which owns its own flags and its own gates.
+
+    Invoked through its argv rather than by importing its internals, so the
+    module keeps exactly one entry point and `caio pull` cannot drift away from
+    what `python3 -m pipeline.fetch.<x>` does.
+    """
+    import importlib
+
+    argv = [module, "--data-dir", str(args.data_dir), *(args.passthrough or [])]
+    saved = sys.argv
+    try:
+        sys.argv = argv
+        return int(importlib.import_module(module).main())
+    except SystemExit as exc:  # a fetch module's own argparse rejected a flag
+        return int(exc.code or 0)
+    except KeyboardInterrupt:
+        log("  stopped. Nothing partial is left behind: a week is written whole "
+            "or not at all.")
+        return 1
+    finally:
+        sys.argv = saved
 
 
 def cmd_judge(args: argparse.Namespace) -> int:
@@ -401,6 +494,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--weeks", type=int, default=14, help="weeks of history (default: 14)")
     p.add_argument("--chats", type=int, default=900, help="conversations (default: 900)")
     p.set_defaults(func=cmd_demo)
+
+    p = sub.add_parser("pull", help="download your own account's data into the lake")
+    p.add_argument("target", choices=[*PULL_TARGETS, "everything"],
+                   help="analytics (cost and usage), directory (who holds a seat), "
+                        "content (conversation text, consent-gated), or everything "
+                        "— which means analytics and directory, never content")
+    p.add_argument("--data-dir", default="data", help="the lake (default: data)")
+    p.add_argument("passthrough", nargs=argparse.REMAINDER,
+                   help="anything after the target goes to the fetcher unchanged "
+                        "(--since, --full-refresh, --products, …)")
+    p.set_defaults(func=cmd_pull)
 
     p = sub.add_parser("check", help="what this lake can answer, and what it is missing")
     shared(p)

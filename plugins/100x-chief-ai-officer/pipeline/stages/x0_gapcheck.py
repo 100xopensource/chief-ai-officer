@@ -226,7 +226,7 @@ def gapcheck(root: Path, as_of: date | None = None) -> JsonObject:
             "status": "blocked" if missing else "clear",
             "blocked_on": missing,
             "narrower_without": thin,
-            "reader_note": _reader_note(spec, missing, thin),
+            "reader_note": _reader_note(spec, missing, thin, root),
         }
 
     stale = []
@@ -289,12 +289,56 @@ def W_coverage(root: Path, start: str, end: str) -> JsonObject:
                "analytics_connectors", "analytics_skills"], start, end)
 
 
-def _reader_note(spec: JsonObject, missing: list[str], thin: list[str]) -> str:
+# What a person actually does about a missing dataset, said at the point they
+# find out it is missing. The message used to name the table and stop there —
+# "fact_block is not in this lake. Pull it, then run again" — which names a
+# thing the reader has never heard of and an action they cannot take, since
+# the pull it refers to is gated on a consent decision the message never
+# mentions. A blocked report should be the most helpful message in the run: it
+# is the one the reader is stuck on.
+REMEDY = {
+    "fact_block": (
+        "This is the conversation text, and it is the one pull that reads what "
+        "people wrote. It is deliberately gated: the first run stops, explains "
+        "what will be stored and where, and asks for the name of the person "
+        "accountable for the decision, which is saved next to the data.\n"
+        "         To start that:  caio pull content --data-dir {root}"
+    ),
+    "dim_chat": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "fact_message": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "fact_attachment": "Comes with the conversation pull:  caio pull content --data-dir {root}",
+    "analytics_cost": "caio pull analytics --data-dir {root}",
+    "analytics_users": "caio pull analytics --data-dir {root}",
+    "analytics_user_cost": "caio pull analytics --data-dir {root}",
+    "analytics_usage": "caio pull analytics --data-dir {root}",
+    "analytics_connectors": "caio pull analytics --data-dir {root}",
+    "analytics_skills": "caio pull analytics --data-dir {root}",
+    "directory_users": "caio pull directory --data-dir {root}",
+    "directory_group_members": "caio pull directory --data-dir {root}",
+}
+
+
+def _remedy(missing: list[str], root: Path) -> str:
+    """The command that fixes it, deduplicated, or nothing if we cannot say."""
+    seen: list[str] = []
+    for dataset in missing:
+        text = REMEDY.get(dataset)
+        if text:
+            text = text.format(root=root)
+            if text not in seen:
+                seen.append(text)
+    return "\n         ".join(seen)
+
+
+def _reader_note(spec: JsonObject, missing: list[str], thin: list[str],
+                 root: Path | None = None) -> str:
     """One sentence a report can print about its own coverage."""
     if missing:
-        return (f"The {spec['title']} cannot be produced: "
+        note = (f"The {spec['title']} cannot be produced: "
                 f"{_english_list(missing)} {'is' if len(missing) == 1 else 'are'} "
-                "not in this lake. Pull it, then run again.")
+                "not in this lake.")
+        remedy = _remedy(missing, root or Path("data"))
+        return f"{note}\n         {remedy}" if remedy else f"{note} Pull it, then run again."
     if thin:
         return (f"The {spec['title']} can be produced, but without "
                 f"{_english_list(thin)} it answers less than it could. "
@@ -347,6 +391,12 @@ def render_human(result: JsonObject) -> str:
         lines.append(f"  {mark}  {report['title']:<16} for {report['reader']}")
         if report["blocked_on"]:
             lines.append(f"           missing: {', '.join(report['blocked_on'])}")
+            # The remedy, here, where somebody is stuck. Naming the missing
+            # table and stopping told the reader the name of a thing they had
+            # never heard of and nothing they could do about it.
+            remedy = _remedy(report["blocked_on"], Path(result["data_dir"]))
+            if remedy:
+                lines.append(f"           {remedy}")
         elif report["narrower_without"]:
             lines.append(f"           narrower without: {', '.join(report['narrower_without'])}")
     broken = result.get("shape_broken") or []

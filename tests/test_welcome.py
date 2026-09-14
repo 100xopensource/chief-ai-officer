@@ -281,3 +281,72 @@ def test_welcome_pulls_in_no_third_party_dependency(module, tmp_path):
     done = subprocess.run([sys.executable, "-c", script], capture_output=True,
                           text=True, cwd=tmp_path, env=environment, timeout=30)
     assert done.returncode == 0, done.stderr
+
+
+# --------------------------------------------------------------------------
+# installed as a plugin, and nothing else
+#
+# The case the first version got wrong. "Not a checkout" was read as "must be
+# installed", so somebody who installed from the marketplace and never ran pip
+# was told to type `caio` — which they do not have. The first thing the
+# documentation told them to do did not work.
+# --------------------------------------------------------------------------
+
+def test_a_plugin_only_install_is_not_told_to_type_caio(tmp_path, monkeypatch):
+    plugin = tmp_path / "plugin_abc123"
+    (plugin / "pipeline").mkdir(parents=True)
+    (plugin / "pipeline" / "cli.py").write_text("", encoding="utf-8")
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(plugin))
+    monkeypatch.setattr(welcome, "command_is_available", lambda: False)
+
+    state = welcome.detect(tmp_path)
+    assert state["plugin_root"] == str(plugin)
+    assert state["installed"] is False
+    assert state["repo_root"] is None
+
+    line = welcome._run(state, "check --data-dir data")
+    assert line.startswith("python3 ")
+    assert "cli.py" in line
+    assert not line.startswith("caio ")
+
+
+def test_the_plugin_path_is_a_variable_not_a_resolved_path(tmp_path, monkeypatch):
+    """That directory is session-scoped: it changes between sessions. A path
+    resolved into the instructions is correct exactly once and then silently
+    wrong, which is worse than no path at all."""
+    plugin = tmp_path / "local-agent-mode-sessions" / "abc" / "plugin_1"
+    (plugin / "pipeline").mkdir(parents=True)
+    (plugin / "pipeline" / "cli.py").write_text("", encoding="utf-8")
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(plugin))
+    monkeypatch.setattr(welcome, "command_is_available", lambda: False)
+
+    state = welcome.detect(tmp_path)
+    text = welcome.message(state) + welcome.brief_for_claude(state)
+    assert "$CLAUDE_PLUGIN_ROOT" in text
+    assert str(plugin) not in text, (
+        "the session-scoped path was written into the instructions; it will be "
+        "wrong the next time anyone reads them"
+    )
+
+
+def test_a_stale_plugin_root_is_not_offered(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(tmp_path / "gone"))
+    monkeypatch.setattr(welcome, "command_is_available", lambda: False)
+    assert welcome.detect(tmp_path)["plugin_root"] is None
+
+
+def test_the_brief_explains_that_a_mid_session_install_needs_a_restart():
+    """ListPlugins comes back empty and the skill errors although the plugin is
+    on disk. It reads as a failed install; the fix is a new conversation, and
+    nothing says so."""
+    brief = welcome.brief_for_claude(welcome.detect()).lower()
+    assert "start a new conversation" in brief
+    assert "not a failed install" in brief
+
+
+def test_one_key_is_enough_and_the_page_says_so():
+    """The table reads as "I need both", and somebody holding a single
+    Compliance Access Key decides they are blocked when they are not."""
+    text = welcome.message(welcome.detect())
+    assert "Either works on its own" in text
+    assert "Two keys are supported, not required" in text
