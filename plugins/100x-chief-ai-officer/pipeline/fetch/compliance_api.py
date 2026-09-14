@@ -16,7 +16,9 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Union
 
-import requests
+from pipeline.fetch._requests import require_requests
+
+requests = require_requests()
 
 API_BASE = os.environ.get("CAIO_API_BASE", "https://api.anthropic.com")
 

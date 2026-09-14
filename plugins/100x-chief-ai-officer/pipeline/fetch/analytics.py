@@ -73,9 +73,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Union
 
-import requests
-
+from pipeline.fetch._requests import require_requests
 from pipeline.lake import datalake as lake
+
+requests = require_requests()
 
 # Same override the compliance fetcher honours, so a proxy or gateway is set
 # once and both network modules follow it.
