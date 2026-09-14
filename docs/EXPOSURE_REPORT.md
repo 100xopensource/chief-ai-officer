@@ -17,6 +17,13 @@ reading this?"*, there is an answer with a name and a date on it.
 
 ## Downloading the conversation text
 
+Ask for it by name:
+
+> **"Pull the conversation content for the Exposure Report."**
+
+Claude will stop and put the consent decision to you before anything is
+downloaded. On the command line the same step is:
+
 ```bash
 caio pull content --data-dir data
 ```
@@ -64,7 +71,8 @@ a tie to break quietly.
 ## Option A — a person does the reading
 
 No network calls, nothing extra to install. This is two passes, because a human
-is in the middle of it:
+is in the middle of it. Ask for it with **"Help me review these flagged
+passages"** and Claude walks you through it; the commands underneath are:
 
 ```bash
 # 1. Writes review-worksheet.md, with each flagged passage and a blank VERDICT line
@@ -87,8 +95,8 @@ counted just because you skipped it.
 
 ## Option B — a Claude model does the reading
 
-One command, but it needs a one-off install and it sends the flagged passages to
-a model:
+One step, but it needs a one-off install and it sends the flagged passages to a
+model. Ask for it with **"Have a model read the flagged passages"**, or:
 
 ```bash
 pip install anthropic
