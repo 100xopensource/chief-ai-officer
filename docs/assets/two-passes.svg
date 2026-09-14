@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="448" viewBox="0 0 1200 448" role="img" aria-labelledby="t d">
+  <title id="t">How a match becomes a finding</title>
+  <desc id="d">Four stages. A scan match is a lead to check, not a result: historically about 44 in 100 turn out to be real once someone reads them. Whatever the first reader calls real is read again by an independent second pass that is never told the first verdict, and only what survives both is published. Where the two passes disagree, nothing is published.</desc>
+
+  <rect width="1200" height="448" rx="24" fill="#F4F3F8"/>
+  <text x="48" y="50" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2.4" fill="#5C5C5C">HOW A MATCH BECOMES A FINDING</text>
+  <text x="48" y="84" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#222222">Nothing is published until it has been read twice</text>
+  <text x="48" y="108" font-family="Arial,sans-serif" font-size="14" fill="#5C5C5C">A pattern match is a lead to go check — never, on its own, a result.</text>
+
+  <g>
+    <rect x="48" y="126" width="229" height="200" rx="12" fill="#ffffff" stroke="#E6E5ED"/>
+    <rect x="48" y="126" width="229" height="5" rx="2.5" fill="#DDD3FB"/>
+    <text x="74" y="172" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing="1.6" fill="#5C5C5C">STEP 1</text>
+    <text x="74" y="203" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#222222">Match</text>
+    <text x="74" y="232" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">The scan spots something</text>
+    <text x="74" y="252" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">shaped like a secret.</text>
+    <rect x="74" y="277" width="168" height="24" rx="4" fill="#F4F3F8"/>
+    <text x="86" y="294" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#5C5C5C">A LEAD, NOT A RESULT</text>
+  </g>
+  <g>
+    <rect x="369" y="126" width="229" height="200" rx="12" fill="#ffffff" stroke="#E6E5ED"/>
+    <rect x="369" y="126" width="229" height="5" rx="2.5" fill="#C9BCF9"/>
+    <text x="395" y="172" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing="1.6" fill="#5C5C5C">STEP 2</text>
+    <text x="395" y="203" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#222222">Judge</text>
+    <text x="395" y="232" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">Someone reads the passage</text>
+    <text x="395" y="252" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">and decides.</text>
+    <rect x="395" y="277" width="168" height="24" rx="4" fill="#F4F3F8"/>
+    <text x="407" y="294" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#5C5C5C">A PERSON, OR A MODEL</text>
+  </g>
+  <g>
+    <rect x="646" y="126" width="229" height="200" rx="12" fill="#ffffff" stroke="#E6E5ED"/>
+    <rect x="646" y="126" width="229" height="5" rx="2.5" fill="#9B7FF5"/>
+    <text x="672" y="172" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing="1.6" fill="#5C5C5C">STEP 3</text>
+    <text x="672" y="203" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#222222">Verify</text>
+    <text x="672" y="232" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">Read a second time by</text>
+    <text x="672" y="252" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">someone told nothing</text>
+    <text x="672" y="272" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">of the first verdict.</text>
+    <rect x="672" y="285" width="152" height="24" rx="4" fill="#F4F3F8"/>
+    <text x="684" y="302" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#5C5C5C">BLIND TO THE FIRST</text>
+  </g>
+  <g>
+    <rect x="923" y="126" width="229" height="200" rx="12" fill="#ffffff" stroke="#D7D5E2"/>
+    <rect x="923" y="126" width="229" height="5" rx="2.5" fill="#5027F1"/>
+    <text x="949" y="172" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing="1.6" fill="#5C5C5C">STEP 4</text>
+    <text x="949" y="203" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#222222">Published</text>
+    <text x="949" y="232" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">Only what survived</text>
+    <text x="949" y="252" font-family="Arial,sans-serif" font-size="13.5" fill="#3A3A3A">both passes.</text>
+    <rect x="949" y="277" width="96" height="24" rx="4" fill="#EDE9FB"/>
+    <text x="961" y="294" font-family="Arial,sans-serif" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#5027F1">A FINDING</text>
+  </g>
+
+  <path d="M309 222 h28 m0 0 l-7 -6 m7 6 l-7 6" stroke="#9B7FF5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="323" y="180" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#5027F1">44%</text>
+  <text x="323" y="199" text-anchor="middle" font-family="Arial,sans-serif" font-size="11.5" fill="#5C5C5C">survive</text>
+  <path d="M608 222 h28 m0 0 l-7 -6 m7 6 l-7 6" stroke="#9B7FF5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M885 222 h28 m0 0 l-7 -6 m7 6 l-7 6" stroke="#9B7FF5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="48" y="354" width="1104" height="48" rx="8" fill="#EDE9FB"/>
+  <text x="72" y="384" font-family="Arial,sans-serif" font-size="14" fill="#3A3A3A"><tspan font-weight="700" fill="#222222">If the two passes disagree, it is published as neither.</tspan>  A disagreement is a fact about the material, not a tie to break quietly.</text>
+</svg>
