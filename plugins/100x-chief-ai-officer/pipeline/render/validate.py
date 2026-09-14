@@ -44,6 +44,28 @@ structure    The embedded render block must parse, and must match its sidecar
              JSON byte for byte. Iteration is a JSON swap; if the swap and the
              file disagree, one of them is lying about what shipped.
 
+zero_variance A whole column of zeros, or a stated total of zero that its own
+             parts agree with, is refused. This is the newest gate and the one
+             that would have caught the worst failure this project has had: a
+             stat card reading "0% of connector calls failed" against a source
+             that publishes no failure data, and a "most-used capabilities"
+             ranking sorted by a key that was zero for every row. Both passed
+             every other gate here, and the reconciliation block proved 0 == 0.
+
+What these gates do not check
+-----------------------------
+Whether the numbers are right. Every gate here is a check on form: the document
+is well-formed, it leaks nothing, its parts sum to its totals, its caveats
+survived the rewrite. None of them verifies that a figure was computed from a
+field that exists, or that the field means what the code thinks it means.
+
+That distinction cost this project a pair of confidently wrong reports, because
+"12 gates passed" was read — including by the person who wrote it — as "the
+numbers are right". So the summary line says what it means: integrity checks
+passed, numbers not independently verified. The shape check that does test
+whether a source field exists lives at ingest, in `pipeline.lake.schema`, and
+runs from `caio check`.
+
 Usage
 -----
     python3 -m pipeline.render.validate report.html
@@ -370,6 +392,111 @@ def gate_arithmetic(block: dict[str, Any], result: Result) -> None:
         result.ok("arithmetic")
 
 
+NUMERIC_CELL_RE = re.compile(r"^[-+]?[\d,]+(?:\.\d+)?%?$")
+
+
+def _is_zero_cell(cell: Any) -> bool:
+    """True for a cell that is numerically zero, however it was formatted."""
+    if isinstance(cell, (int, float)) and not isinstance(cell, bool):
+        return float(cell) == 0.0
+    if not isinstance(cell, str):
+        return False
+    text = cell.strip().lstrip("$")
+    if not NUMERIC_CELL_RE.match(text):
+        return False
+    try:
+        return float(text.rstrip("%").replace(",", "")) == 0.0
+    except ValueError:
+        return False
+
+
+def _is_numeric_cell(cell: Any) -> bool:
+    if isinstance(cell, (int, float)) and not isinstance(cell, bool):
+        return True
+    if not isinstance(cell, str):
+        return False
+    return bool(NUMERIC_CELL_RE.match(cell.strip().lstrip("$")))
+
+
+def gate_zero_variance(block: dict[str, Any], result: Result,
+                       min_rows: int = 3) -> None:
+    """Refuse a numeric column that is zero all the way down.
+
+    A metric reading a field the data does not have returns zero rather than
+    failing, and a zero is indistinguishable from a measurement downstream. That
+    is how a stat card reading "0% of connector calls failed" shipped over a
+    source that publishes no failure data at all — and why its reconciliation
+    block tied out perfectly, proving that nothing summed to nothing.
+
+    The rule: a whole column of zeros is not a finding that everything is zero.
+    It is a column that was never measured, and the report must say which. A
+    genuine all-zero week is rare, real, and says so in words — an unmeasured
+    column has no words to offer, which is exactly what makes it dangerous.
+
+    Columns shorter than `min_rows` are left alone: three rows of zero really
+    can be three zeros.
+    """
+    problems: list[str] = []
+
+    for name, table in _tables(block):
+        rows = [r for r in table.get("rows") or [] if isinstance(r, list)]
+        head = table.get("head") or []
+        if len(rows) < min_rows:
+            continue
+        width = min((len(r) for r in rows), default=0)
+        for column in range(width):
+            cells = [row[column] for row in rows]
+            if not all(_is_numeric_cell(c) for c in cells):
+                continue
+            if all(_is_zero_cell(c) for c in cells):
+                label = head[column] if column < len(head) else f"column {column + 1}"
+                problems.append(
+                    f"{name}: every row of '{label}' is zero across {len(rows)} rows"
+                )
+
+    for label, spec in (block.get("reconciliation") or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        parts = [p for p in (spec.get("parts") or []) if isinstance(p, dict)]
+        if len(parts) < min_rows:
+            continue
+        if _is_zero_cell(spec.get("total")) and all(_is_zero_cell(p.get("value"))
+                                                    for p in parts):
+            problems.append(
+                f"{label}: a total of zero reconciled against {len(parts)} parts that "
+                "are all zero — this proves nothing and reads as a measurement"
+            )
+
+    if problems:
+        result.fail(
+            "zero_variance",
+            "; ".join(problems) + ". A column that is zero everywhere was not "
+            "measured as zero, it was not measured. Report it as not measurable, "
+            "naming the reason, rather than as a number — a zero here reads to a "
+            "reader as good news.",
+        )
+    else:
+        result.ok("zero_variance")
+
+
+def _tables(block: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Every head/rows table anywhere in the block, with the key it sits under."""
+    found: list[tuple[str, dict[str, Any]]] = []
+
+    def walk(node: Any, name: str) -> None:
+        if isinstance(node, dict):
+            if isinstance(node.get("rows"), list) and "head" in node:
+                found.append((name, node))
+            for key, value in node.items():
+                walk(value, key)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, name)
+
+    walk(block, "block")
+    return found
+
+
 def gate_completeness(html: str, block: dict[str, Any], result: Result) -> None:
     """Every key the page's own script reads must exist in the data.
 
@@ -436,6 +563,22 @@ def gate_structure(html: str, block: dict[str, Any], sidecar: Path | None, resul
             result.ok("structure/byte-match")
 
 
+def summary_line(name: str, result: Result) -> str:
+    """What the run says it did — in words that cannot be read as more than it is.
+
+    This used to print "12 passed", and every reader of it, including the people
+    who built it, took that to mean the numbers had been checked. They had not.
+    Every gate here checks the shape of the document; not one of them can tell a
+    figure computed from real data from a figure computed from a field that does
+    not exist. Two reports went out confidently wrong with a full set of green
+    checks, and the wording is why nobody looked twice.
+    """
+    tail = (f", {len(result.warnings)} warning(s)" if result.warnings else "")
+    tail += (f", {len(result.failures)} failure(s)" if result.failures else "")
+    return (f"{name}: {len(result.passed)} integrity checks passed{tail} · "
+            "numbers not independently verified")
+
+
 def validate(path: Path, sidecar: Path | None = None, edition: str = "shareable") -> Result:
     result = Result()
     html = path.read_text(encoding="utf-8")
@@ -453,6 +596,7 @@ def validate(path: Path, sidecar: Path | None = None, edition: str = "shareable"
     gate_acronyms(prose_text(block), result)
     gate_caveats(text, result, block.get("report_kind"))
     gate_arithmetic(block, result)
+    gate_zero_variance(block, result)
     gate_completeness(html, block, result)
     gate_structure(html, block, sidecar, result)
 
@@ -483,10 +627,7 @@ def main() -> int:
     for gate, detail in result.failures:
         print(f"  FAIL   {gate}: {detail}", file=sys.stderr)
 
-    print(
-        f"\n{path.name}: {len(result.passed)} passed, "
-        f"{len(result.warnings)} warning(s), {len(result.failures)} failure(s)."
-    )
+    print("\n" + summary_line(path.name, result))
     if result.failures:
         print("This report does not ship until these are fixed.", file=sys.stderr)
         return 1

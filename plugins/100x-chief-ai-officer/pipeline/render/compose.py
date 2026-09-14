@@ -272,8 +272,9 @@ def _watch_waste(m: JsonObject) -> list[JsonObject]:
 def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
     m = locked["metrics"]
     adoption, depth = m["adoption"], m["depth"]
-    friction, connectors = m["friction"], m["connectors"]
+    reliability, connectors = m["reliability"], m["connectors"]
     skills, coverage = m["skills"], m["coverage"]
+    freshness = m.get("freshness", {})
 
     block = _base(locked, "value", scope_tag)
     block.update({
@@ -283,15 +284,21 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
             depth.get("reader_note",
                       "Depth of use cannot be measured: no per-person activity in this window."),
 
-            ((friction.get("reader_note", "") + " " +
-              (connectors.get("faded_note", "") if connectors.get("available") else "")).strip()
-             or "Nothing measurable is getting in the way this week.")
+            ((connectors.get("faded_note", "") if connectors.get("available")
+              else "Nothing measurable is getting in the way this week.").strip()
+             + " " + reliability["reader_note"]).strip()
             + " " + coverage.get("reader_note", ""),
         ],
         "stats": [
             {"value": adoption.get("active_people_described", "—"),
              "label": "Used Claude in the reported week",
-             "sub": (f"Out of {adoption['seats_total']:,} who hold a seat."
+             # The seat total is the operator's adjusted one, and says so. Both
+             # reports read it from the same place, so they cannot disagree
+             # about how large the organisation is.
+             "sub": ((f"Out of {adoption['seats_total']:,} who hold a seat."
+                      + (f" {adoption['seats_excluded']} account(s) recorded as holding "
+                         "no active seat are excluded." if adoption.get("seats_excluded")
+                         else ""))
                      if adoption.get("seats_total") else "Seat total not available.")},
             {"value": (depth.get("habitual_described", "—") if depth.get("available") else "—"),
              "label": "Use it on three days or more",
@@ -301,11 +308,14 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
              "label": "Data connections in use",
              "sub": (f"{connectors['unnamed_count']} appear under a bare identifier with no "
                      "owner attached." if connectors.get("available") else "")},
-            {"value": (f"{friction['overall_error_rate_pct']:.0f}%"
-                       if friction.get("available") else "—"),
-             "label": "Of connector calls failed",
-             "sub": "Every failure is spend that bought nothing and a person who did the "
-                    "thing another way."},
+            # This card used to read "0% of connector calls failed" — computed
+            # from a failure count that does not exist in any data source this
+            # project reads, so it was zero everywhere and read as a clean bill
+            # of health. What replaced it is measured from data that exists.
+            {"value": (f"{len(connectors['faded'])}" if connectors.get("available") else "—"),
+             "label": "Connections people stopped reaching for",
+             "sub": "Used half as often as their own earlier average, or less. Nothing "
+                    "errors and nothing alerts; people go back to doing it by hand."},
         ],
         "trend": _trend(m.get("trend")),
         "verifline": (
@@ -334,17 +344,19 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
             for finding in locked["findings"]
         ],
         "scoreboard_sub": (
-            "What people reached for, and how often it worked. Anything used by fewer than "
-            "five people is grouped rather than listed, because a row of one is a name."
+            "What people reached for, and whether they are still reaching for it. Anything "
+            "used by fewer than five people is grouped rather than listed, because a row of "
+            "one is a name. Whether a connection failed is not shown: this data source "
+            "publishes no failure data, and a blank reliability column would read as good news."
         ),
-        "scoreboard_note": "Connections with fewer than ten attempts are left out",
-        "scoreboard": _scoreboard(connectors, friction),
-        "watch": _watch_value(m, skills),
+        "scoreboard_note": connectors.get("unit_note", ""),
+        "scoreboard": _scoreboard(connectors),
+        "watch": _watch_value(m, skills, reliability, freshness),
         "reconciliation": ({
-            "connector_calls": {
-                "total": sum(c["calls"] for c in connectors["in_use"]),
+            "connector_sessions": {
+                "total": sum(c["sessions"] for c in connectors["in_use"]),
                 "parts": [{"label": ("an unnamed connection" if c["unnamed"] else c["name"]),
-                           "value": c["calls"]}
+                           "value": c["sessions"]}
                           for c in connectors["in_use"]],
                 "explained": None,
             }
@@ -356,52 +368,85 @@ def _value(locked: JsonObject, scope_tag: str) -> JsonObject:
     return block
 
 
-def _scoreboard(connectors: JsonObject, friction: JsonObject) -> JsonObject | None:
-    """Per-connection usage and reliability, with a plain verdict per row.
+def _scoreboard(connectors: JsonObject) -> JsonObject | None:
+    """Per-connection usage, with a plain verdict per row.
 
     The verdict cell is "flag|text": the template splits on the pipe so the
     colour and the sentence travel together as one flat string.
+
+    There used to be a reliability verdict here, drawn from an error rate. Every
+    row rendered grey and read "too few calls to judge", because the error rate
+    was computed from fields no data source publishes — so the column said
+    nothing about ten connections an organisation had been running since April.
+    The verdict now describes the thing the data can actually see: whether the
+    connection is being used more, the same, or less than it used to be.
     """
     if not connectors.get("available"):
         return None
-    errors = {row["name"]: row["error_rate_pct"]
-              for row in friction.get("by_connector", [])}
 
     rows = []
     for entry in connectors["in_use"]:
         name = "an unnamed connection" if entry["unnamed"] else entry["name"]
-        rate = errors.get(entry["name"])
-        if rate is None:
-            flag, verdict = "grey", "Too few calls to judge"
-        elif rate >= 25:
-            flag, verdict = "red", "Failing often enough to drive people away"
-        elif rate >= 10:
-            flag, verdict = "amber", "Failing more than it should"
+        change = entry["change_pct"]
+        if change is None:
+            # Two different absences, told apart. One string for both let a data
+            # fault read as the birth-date guard doing its job on purpose.
+            flag = "grey"
+            verdict = ("New this period — too new to compare"
+                       if entry.get("no_change_reason") == "new this period"
+                       else "No comparable earlier data")
+            change_cell = verdict.split(" — ")[0]
+        elif change <= -50:
+            flag, verdict, change_cell = "red", "Being abandoned", f"{change:+.0f}%"
+        elif change <= -20:
+            flag, verdict, change_cell = "amber", "Falling away", f"{change:+.0f}%"
+        elif change >= 20:
+            flag, verdict, change_cell = "green", "Growing", f"{change:+.0f}%"
         else:
-            flag, verdict = "green", "Working"
+            flag, verdict, change_cell = "green", "Steady", f"{change:+.0f}%"
         rows.append([
             name,
-            f"{entry['calls']:,}",
-            f"{rate:.0f}%" if rate is not None else "—",
-            (f"{entry['change_pct']:+.0f}%" if entry["change_pct"] is not None
-             else "too new to compare"),
+            f"{entry['sessions']:,}",
+            entry["people_described"],
+            change_cell,
             f"{flag}|{verdict}",
         ])
-    return {"head": ["Connection", "Calls", "Failed", "Change", "Verdict"], "rows": rows}
+    return {"head": ["Connection", "Sessions", "People", "Change", "Verdict"], "rows": rows}
 
 
-def _watch_value(m: JsonObject, skills: JsonObject) -> list[JsonObject]:
+def _watch_value(m: JsonObject, skills: JsonObject, reliability: JsonObject,
+                 freshness: JsonObject) -> list[JsonObject]:
     out = [
         {"label": "What people reached for",
-         "detail": ("The most-used capabilities this week were "
-                    + ", ".join(s["name"] for s in skills.get("in_use", [])[:4])
-                    + f", across {skills.get('invocations_total', 0):,} uses."
-                    if skills.get("available") and skills.get("in_use")
-                    else "No capability-level usage is recorded in this lake.")},
+         "detail": ((
+             "The most-used capabilities this week were "
+             + ", ".join(s["name"] for s in skills.get("in_use", [])[:4])
+             + f", across {skills.get('sessions_total', 0):,} sessions. "
+             + skills.get("unit_note", ""))
+             if skills.get("available") and skills.get("in_use")
+             else (skills.get("why")
+                   or "No capability-level usage is recorded in this lake."))},
+        # When the connector numbers cannot be computed at all, say so where the
+        # numbers would have been. An empty section reads as "nothing to report";
+        # a named absence reads as what it is.
+        {"label": "Connections could not be measured",
+         "detail": ("" if m["connectors"].get("available")
+                    else (m["connectors"].get("why", "")
+                          + ". Nothing about connections is shown below rather than "
+                            "shown as zero: this is missing data, not an absence of use."))},
         {"label": "New connections",
          "detail": (m["connectors"].get("birth_note", ""))},
         {"label": "Quiet abandonment",
          "detail": m["connectors"].get("faded_note", "")},
+        {"label": "Connections nobody can name",
+         "detail": m["connectors"].get("unnamed_note", "")},
+        # Stated rather than omitted. A reader who remembers a reliability
+        # figure is owed the reason it is gone, and "no data" must never be
+        # allowed to arrive looking like "no failures".
+        {"label": "What this data cannot answer",
+         "detail": reliability["reader_note"]},
+        {"label": "How complete this week is",
+         "detail": (freshness.get("reader_note", "") if freshness.get("any_short") else "")},
         {"label": "What can be read",
          "detail": m["coverage"]["reader_note"]},
     ]

@@ -279,8 +279,11 @@ def cmd_report(args: argparse.Namespace) -> int:
             continue
 
         count = len(block.get("findings") or [])
+        # "gates passed" was read as "the numbers are right" — including by the
+        # people who wrote it — while every gate checks only the document's form.
         log(f"  built  {out.name}  ·  {count} finding(s)  ·  "
-            f"{len(result.passed)} gates passed")
+            f"{len(result.passed)} integrity checks passed, numbers not "
+            "independently verified")
         built.append(out)
 
     if args.deliver and built:

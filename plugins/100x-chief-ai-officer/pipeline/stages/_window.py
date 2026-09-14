@@ -99,6 +99,73 @@ def resolve_as_of(root: Path, explicit: str | None = None) -> date:
     return datetime.now(timezone.utc).date()
 
 
+def dataset_days(root: Path, dataset: str, start: str, end: str,
+                 day_key: str = "day") -> set[str]:
+    """Which days inside a window this dataset actually has rows for."""
+    return {str(row.get(day_key)) for row in rows_in_window(root, dataset, start, end, day_key)
+            if row.get(day_key)}
+
+
+def window_coverage(root: Path, datasets: Iterable[str], start: str,
+                    end: str) -> JsonObject:
+    """How much of the window each contributing dataset actually covers.
+
+    The window is resolved from the newest day any dataset can see, and the
+    datasets do not all see the same day. Cost reaches the end of the week;
+    per-person activity, connections and capabilities finalise a couple of days
+    behind it. So the reported week can be measured over five days for some
+    numbers and seven for others, with every comparison drawn against four
+    seven-day baselines.
+
+    That biases the newest week downward — in one measured run, by one to two
+    points on the week-over-week change, with the weekend adding one to four
+    people to the habitual count alone. This is the project's own documented
+    "a part-week always reads as a collapse" hazard, arriving through a lagging
+    table instead of a truncated window, so nothing catches it.
+
+    Resolving the whole window back to the slowest table was the other option
+    and is worse: one dataset from a single old pull would drag every report
+    months backwards. Instead the shortfall is measured here and stated, and the
+    stages that would draw a false comparison decline to draw it.
+    """
+    expected = len(day_range_strings(start, end))
+    out: JsonObject = {}
+    for dataset in datasets:
+        if not dataset_exists(root, dataset):
+            continue
+        days = dataset_days(root, dataset, start, end)
+        out[dataset] = {
+            "dataset": dataset,
+            "days_with_data": len(days),
+            "expected_days": expected,
+            "last_day": max(days) if days else None,
+            "short": bool(days) and len(days) < expected,
+        }
+    short = [d for d in out.values() if d["short"]]
+    return {
+        "datasets": out,
+        "expected_days": expected,
+        "short_datasets": [d["dataset"] for d in short],
+        "any_short": bool(short),
+        "reader_note": (
+            "Not every table reaches the end of the reported week. "
+            + "; ".join(f"{d['dataset'].replace('analytics_', '').replace('_', ' ')} "
+                        f"stops at {d['last_day']} ({d['days_with_data']} of "
+                        f"{expected} days)" for d in short)
+            + ". Anything drawn from a short table is counted over fewer days than "
+              "the weeks it would be compared with, so it is labelled rather than "
+              "compared."
+        ) if short else "Every contributing table covers the whole reported week.",
+    }
+
+
+def day_range_strings(start: str, end: str) -> list[str]:
+    """Every calendar day in an inclusive range, as ISO strings."""
+    first, last = date.fromisoformat(start), date.fromisoformat(end)
+    return [(first + timedelta(days=n)).isoformat()
+            for n in range((last - first).days + 1)]
+
+
 def weeks_back(week_start: str, count: int) -> list[tuple[str, str]]:
     """The `count` complete weeks ending with the one starting at `week_start`.
 
