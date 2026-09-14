@@ -109,6 +109,26 @@ and the code enforces them so they cannot be forgotten. See
 - **Every finding needs an owner and an action within the organisation's
   control.**
 - **Never test a credential.** Liveness is judged from context, never by use.
+- **An absence of measurement is not a measurement of zero.** This one was
+  added last and cost the most. A metric reading a field the data does not have
+  does not crash — it sums to zero, and a zero passes every gate in the project:
+  the page renders, nothing leaks, and the reconciliation block ties out
+  perfectly because zero equals zero. Two reports shipped that way, one of them
+  carrying a stat card reading "0% of connector calls failed" over a source that
+  publishes no failure data at all. Every field a stage reads is now declared in
+  `pipeline/lake/schema.py` and checked against the lake; a missing one is a
+  named skip. Before adding a metric, check the field against what
+  `pipeline/fetch/analytics.py` actually writes — not against the demo fixture,
+  which is what went wrong.
+- **The gates certify form, never substance.** They say the document is
+  well-formed and leaks nothing. They cannot tell a real figure from one
+  computed over an absent field, which is why the run now prints "integrity
+  checks passed · numbers not independently verified" rather than a count that
+  read as a guarantee.
+- **Standing operator decisions live in one layer.** `pipeline/config.py` reads
+  `_reports/config/`. Every stage that needs a seat count or a connection name
+  asks it. Each stage building its own from the raw snapshot is what overstated
+  the headline recoverable figure by thirteen per cent, weekly, to Finance.
 
 ## Running it
 
@@ -119,10 +139,18 @@ pip install -e ".[dev]"
 caio demo --out data-demo
 caio all  --data-dir data-demo --out-dir _reports
 
+# Against real data:
+caio pull everything --data-dir data     # cost, usage, seats
+caio pull content    --data-dir data     # conversation text, consent-gated
+caio check --data-dir data               # window, blockers, shape drift, decisions in force
+
 # Before anything ships:
 python3 -m pytest
 python3 tools/check_manifests.py
 python3 tools/scrubber/scrub.py
+
+# Does the lake carry what the stages read? Run it against real data too:
+python3 -m pipeline.lake.schema --data-dir data
 ```
 
 ## A standing warning

@@ -69,7 +69,7 @@ flowchart TD
     RUN -.->|"add --read"| READ["<b>caio judge</b> + <b>caio verify</b><br/><i>turns matches into findings</i>"]
     READ -.-> RUN
 
-    RUN --> GATES{"12 publication gates"}
+    RUN --> GATES{"publication gates<br/><i>form, not substance</i>"}
     GATES -->|"any fail"| STOP["<b>Not shared.</b><br/>No override flag."]
     GATES -->|"all pass"| HTML["3 HTML files<br/><i>open in any browser</i>"]
 
@@ -179,7 +179,7 @@ The shipping framework asked for three things:
 | Asked for | State |
 |---|---|
 | Plugin with skills to create reports | **Done** — 5 skills, plugin and marketplace manifests, gated in CI |
-| HTML reports | **Done** — 3 reports, self-rendering, 12 publication gates each |
+| HTML reports | **Done** — 3 reports, self-rendering, publication gates on each |
 | Claude artifact that refreshes with new data | **Not built** — reports are static HTML files today |
 
 The third one is a real gap. A report is one file that renders itself from a

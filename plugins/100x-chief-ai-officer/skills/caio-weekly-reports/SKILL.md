@@ -81,7 +81,7 @@ reader.
 ## Reading the run's output
 
 ```
-built  exposure-report-2026-07-12.html  ·  6 finding(s)  ·  12 gates passed
+built  exposure-report-2026-07-12.html  ·  6 finding(s)  ·  13 integrity checks passed
 skip   Value X-Ray: cannot be produced, analytics_users is not in this lake
 FAIL   waste: privacy: 1 email address(es) in a shareable report
 ```
@@ -91,7 +91,38 @@ FAIL   waste: privacy: 1 email address(es) in a shareable report
   report and present it as the real one.
 - `FAIL` — the file was written but must not leave. Fix the cause.
 
-## Which week does "last week" mean
+**Never repeat "integrity checks passed" as though it meant the numbers were
+checked.** Every one of those gates checks the document's form: it renders, it
+leaks nothing, its parts sum to its totals, its caveats survived the rewrite.
+Not one of them verifies that a figure was computed from a field that exists.
+The line used to read "12 gates passed" and was read — by everyone, including
+the people who wrote it — as "the numbers are right", over two reports that were
+wrong in three places. If asked how much confidence that count carries, say what
+it is: the document is well-formed and leaks nothing.
+
+## When a number cannot be produced, it is not zero
+
+The one thing this pipeline must never do is render an absence as a measurement.
+
+A metric that reads a field the data does not have returns zero, and a zero is
+indistinguishable from a real measurement once it reaches a page. That is how a
+stat card reading "0% of connector calls failed" shipped, over a source that
+publishes no failure data at all — and why its reconciliation block tied out
+perfectly, proving that nothing summed to nothing.
+
+So when a section reports `available: false`, it carries a reason. Repeat the
+reason. Do not fill the gap with a zero, a dash or an encouraging sentence:
+
+- **Connection reliability cannot be measured, ever.** The source publishes no
+  failure count and no call count. If someone asks how reliable a connection is,
+  the answer is that this data cannot say — not that nothing failed.
+- **Usage is counted in distinct sessions**, not calls. There is no call count.
+- **A count of people is a peak day, never a sum across days.** Summing
+  distinct-user counts double-counts anyone active twice.
+
+`caio check` names anything present-but-the-wrong-shape before you build.
+
+## Which week does "last week" mean, and whether it is a whole one
 
 The most recently completed Monday to Sunday, resolved from the newest day of
 data in the lake rather than from today's date. So a lake pulled a fortnight ago
@@ -101,11 +132,21 @@ are, rather than silently reporting an empty week.
 Never compare the week in progress against completed weeks. A part-week always
 reads as a collapse, and has been published as one.
 
+The same hazard arrives a second way, through a table rather than a window. The
+activity tables finalise a couple of days behind the cost table, so a week that
+resolves correctly can still be measured over five days for the activity numbers
+and seven for the cost ones — and then compared against four full-week baselines.
+The pipeline now measures each table's coverage and, where one falls short, marks
+the trend point and withholds the comparison rather than drawing a false one.
+If a report says its week is short, say so; do not reach past it for a
+week-over-week number it declined to compute.
+
 ## Individual stages
 
 Useful when something looks wrong and you want to see where it came from.
 
 ```bash
+caio pull everything --data-dir data                               # refresh cost, usage, seats
 caio check --data-dir data                                         # what can be answered
 python3 -m pipeline.stages.x2_scan --data-dir data                 # sweep content
 python3 -m pipeline.stages.x2_metrics_waste --data-dir data        # the raw numbers

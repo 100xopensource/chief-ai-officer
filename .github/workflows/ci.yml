@@ -40,6 +40,7 @@ jobs:
         run: |
           caio --help
           caio welcome
+          caio pull --help
           caio demo --out /tmp/readme-lake --chats 120
           caio check --data-dir /tmp/readme-lake
           caio scan --data-dir /tmp/readme-lake
@@ -98,6 +99,56 @@ jobs:
           for f in /tmp/demo-reports/*.html; do
             python3 -m pipeline.render.validate "$f"
           done
+        env:
+          PYTHONPATH: plugins/100x-chief-ai-officer
+
+      - name: The lake's shape matches what the stages read
+        # The check whose absence cost the most. Metric code was written against
+        # the fixture, the fixture did not match what the live API returns, and
+        # nothing ever compared them — so five fields that exist only in the
+        # demo were read in production, summed to zero, and were published as
+        # measurements. The fixture is pinned to the fetch layer's flatten
+        # functions by a unit test; this asserts the contract holds end to end.
+        run: python3 -m pipeline.lake.schema --data-dir /tmp/demo-lake
+        env:
+          PYTHONPATH: plugins/100x-chief-ai-officer
+
+      - name: Schema drift is caught, not rendered as zero
+        # Strip the usage columns the way an upstream change would, and require
+        # that the pipeline says so rather than reporting a confident zero.
+        run: |
+          cp -r /tmp/demo-lake /tmp/drift-lake
+          python3 - <<'PY'
+          import glob, json
+          for path in glob.glob("/tmp/drift-lake/analytics_connectors/week=*/part.jsonl"):
+              rows = [json.loads(line) for line in open(path)]
+              for row in rows:
+                  for field in ("chat_distinct_conversation_used", "cc_distinct_session_used",
+                                "cowork_distinct_session_used", "office_metrics"):
+                      row.pop(field, None)
+              with open(path, "w") as handle:
+                  handle.writelines(json.dumps(row) + "\n" for row in rows)
+          PY
+
+          if python3 -m pipeline.lake.schema --data-dir /tmp/drift-lake; then
+            echo "FAIL: a missing usage column was not reported" >&2
+            exit 1
+          fi
+
+          python3 -m pipeline.cli report value --data-dir /tmp/drift-lake \
+                  --out-dir /tmp/drift-reports --dry-run
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, "plugins/100x-chief-ai-officer")
+          block = json.loads(next(Path("/tmp/drift-reports").glob("value-xray-*.json")).read_text())
+          assert block["scoreboard"] is None, "a scoreboard was built over a column that is not there"
+          named = [w for w in block["watch"] if "could not be measured" in w["label"]]
+          assert named, "the report did not say why the connection numbers are absent"
+          text = json.dumps(block)
+          assert "0% of connector" not in text
+          print("ok: an absent measurement is reported as absent, not as zero")
+          PY
         env:
           PYTHONPATH: plugins/100x-chief-ai-officer
 

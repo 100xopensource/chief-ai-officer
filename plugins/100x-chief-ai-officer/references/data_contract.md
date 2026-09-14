@@ -43,9 +43,43 @@ everything again.
 | `analytics_user_cost` | day × person | `amount_usd`, `requests` |
 | `analytics_usage` | day × product × model | token counts, including cache |
 | `analytics_users` | day × person | per-product activity counts |
-| `analytics_connectors` | day × connection | call counts, error counts |
-| `analytics_skills` | day × capability | invocations, distinct people |
+| `analytics_connectors` | day × connection | distinct sessions that used it, distinct people |
+| `analytics_skills` | day × capability | distinct sessions that used it, distinct people |
 | `analytics_summaries` | day | seats assigned, active people |
+
+#### What connections and capabilities do not carry
+
+**No call count and no error count.** Neither table records how many times
+anything was called, or how any of those attempts went. Usage is published only
+as *distinct sessions and conversations in which the thing was used*, per
+surface — `chat_distinct_conversation_used`, `cc_distinct_session_used`,
+`cowork_distinct_session_used`, and one more per Office app nested under
+`office_metrics`.
+
+This is a limit of the source, not a gap in the pull. It sits in the same class
+as `product` being null on every per-user cost row: no amount of pulling will
+produce it.
+
+It is stated this plainly because the alternative has already happened. The
+metric stages summed `read_call_count`, `write_call_count`,
+`unclassified_call_count`, `error_call_count` and `invocation_count` — five
+fields that exist only in this project's demo fixture — and published a stat
+card reading "0% of connector calls failed" over a source that has never
+published a failure. Before adding a metric over either table, check the field
+against `pipeline/fetch/analytics.py`'s `flatten_connector` and `flatten_skill`,
+which are the whole of what a real pull writes.
+
+**`distinct_user_count` is a per-day figure and must not be summed across
+days.** Anyone active on more than one day is counted once per day; summing a
+week of it inflated one connection from six people to fifteen. Take the peak
+day, which is what the metric stages do.
+
+**Identity is not stable.** The same connection can report under a readable name
+for most of its life and under a bare identifier for a few days, and a count of
+connections in use counts it twice. Nothing in any dataset can resolve the
+identifier to a name — verified across all of them. That is what
+`_reports/config/connector_aliases.json` is for: the operator supplies the name
+once from the admin console, and the two identities are merged from then on.
 
 ### From the directory API — who exists
 
