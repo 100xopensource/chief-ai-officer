@@ -1,49 +1,72 @@
+<a href="https://100xpartners.ai">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/100xpartners-logo-dark.png">
+    <img alt="100x Partners" src="docs/assets/100xpartners-logo.png" width="100px">
+  </picture>
+</a>
+
+<h3></h3>
+
 # 100x Chief AI Officer
+
+> Built by 100x Partners — [100xpartners.ai](https://100xpartners.ai)
+
+[![CI](https://github.com/100xopensource/chief-ai-officer/actions/workflows/ci.yml/badge.svg)](https://github.com/100xopensource/chief-ai-officer/actions/workflows/ci.yml)
+[![Scrub](https://github.com/100xopensource/chief-ai-officer/actions/workflows/scrub.yml/badge.svg)](https://github.com/100xopensource/chief-ai-officer/actions/workflows/scrub.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **Your firm pays for Claude every month. This tells you what that money bought,
 where it was wasted, and whether anything sensitive went into it.**
 
-It produces three reports. Each one is a single web-page file you can open by
+It produces three reports. Each one is a single web page you open by
 double-clicking it, or attach to an email. No dashboard to log into, no server
-to run, no vendor to sign up with.
+to run, no vendor to sign up with. Everything runs on your own computer, and
+**nothing is uploaded anywhere.**
 
-Everything runs on your own computer. **Nothing is uploaded anywhere.**
+![Three example reports — a Waste Ledger for Finance, a Value X-Ray for whoever owns AI, and an Exposure Report for Compliance — built from an invented company's data](docs/assets/chief-ai-officer-hero.png)
 
----
+## What it produces
 
-## The three reports
+| Output | Purpose |
+|---|---|
+| ![Example Waste Ledger: $2,325 spent last week, 71 of 112 people using Claude, $32.74 per person, and a chart of weekly spend](docs/assets/report-waste-ledger.png) | **Waste Ledger** — for **Finance and Procurement.** What Claude cost, which of that bought nothing, and what to say at renewal. |
+| ![Example Value X-Ray: 71 people used Claude last week, 40% of conversations produced a finished document, and a chart of documents produced each week](docs/assets/report-value-xray.png) | **Value X-Ray** — for **whoever owns AI.** What the money actually bought, and what is stopping it buying more. |
+| ![Example Exposure Report: at least 38 people with a confirmed sensitive item, 612 confirmed items, 77% arriving inside a tool's response](docs/assets/report-exposure.png) | **Exposure Report** — for **Compliance and Risk.** Whether client data, credentials or MNPI reached Claude, and how it got there. |
 
-| Report | Give it to | It answers |
-|---|---|---|
-| **Waste Ledger** | Finance / Procurement | What did Claude cost us, which of that bought nothing, and what should we say at renewal? |
-| **Value X-Ray** | Whoever owns AI | What did the money actually buy, and what is stopping it buying more? |
-| **Exposure Report** | Compliance / Risk | Did anything sensitive — client data, credentials, MNPI — end up in Claude, and how did it get there? |
+Every name and number in those examples is invented. To click through a finished
+one, download a file from [`docs/mock-reports/`](docs/mock-reports/) and open it
+in your browser — GitHub shows you a page's source code rather than the page
+itself, so downloading is the trick.
 
-Want to see one before you install anything? Three finished examples are in
-[`docs/mock-reports/`](docs/mock-reports/). Download a file and open it in your
-browser. (GitHub shows you the page's source code instead of the page itself, so
-downloading is the trick.) Every name and number in them is made up.
+## Before you start
 
----
+1. **A Mac or a Windows PC.** You'll type a few commands, but you don't need to
+   know what they mean — every one of them is on this page to copy and paste.
+2. **Python, version 3.10 or newer.** Two minutes to check and install, below.
+3. **Nothing else.** The first run invents a fictional company to report on, so
+   it needs no API key, no permission from anyone, and touches no real data.
 
-## Part 1 — Try it in five minutes, using fake data
+Set aside about ten minutes. Real data comes later, in
+[Part 2](#part-2--using-your-real-data), and needs a key from whoever
+administers your firm's Claude account.
 
-Do this first. It needs **no API keys, no permission from anyone, and touches no
-real data.** It invents a fictional 112-person company and writes all three
-reports about it, so you can see exactly what you'd be getting.
+## Install
 
 ### Step 1 — Check you have Python
 
-Open Terminal (Mac) or Command Prompt / PowerShell (Windows) and type:
+Open **Terminal** (Mac: press `Cmd+Space`, type *Terminal*) or **PowerShell**
+(Windows: press the Start key, type *PowerShell*). Paste this and press Enter:
 
 ```bash
 python3 --version
 ```
 
-You want **3.10 or higher**. If it says "command not found" or a lower number,
+You want **3.10 or higher**. If you see "command not found" or a lower number,
 install Python from [python.org/downloads](https://www.python.org/downloads/)
-and try again. On Windows you may need to type `python` instead of `python3` —
-if so, use `python` everywhere below too.
+and try again.
+
+> **On Windows,** if `python3` isn't recognised, type `python` instead — and use
+> `python` everywhere else on this page too.
 
 ### Step 2 — Download this project
 
@@ -52,8 +75,8 @@ git clone https://github.com/100xopensource/chief-ai-officer.git
 cd chief-ai-officer
 ```
 
-No `git`? Click the green **Code** button at the top of this page → **Download
-ZIP**, unzip it, then open a terminal inside the unzipped folder.
+> **No `git`?** Click the green **Code** button at the top of this page, choose
+> **Download ZIP**, unzip it, and open a terminal inside the unzipped folder.
 
 ### Step 3 — Install it
 
@@ -64,7 +87,14 @@ pip install -e .
 This downloads two small libraries and creates a command called `caio`. It takes
 about a minute.
 
-> If `pip` isn't found, use `python3 -m pip install -e .` instead.
+> **If `pip` isn't found,** use `python3 -m pip install -e .` instead.
+
+That's the install finished. Nothing is running in the background, and nothing
+has read any of your data.
+
+## Try it on a fictional company
+
+Two commands, and you have all three reports in front of you.
 
 ### Step 4 — Invent a company
 
@@ -72,8 +102,9 @@ about a minute.
 caio demo --out data-demo
 ```
 
-You'll see it build 14 weeks of fictional history — 112 employees, about $11,700
-of pretend spend, 900 conversations. All of it fabricated by your own machine.
+You'll watch it build 14 weeks of fictional history — 112 employees, about
+$11,700 of pretend spend, 900 conversations. All of it fabricated by your own
+machine.
 
 ### Step 5 — Build the reports
 
@@ -91,37 +122,46 @@ It prints what it's doing, then finishes with something like:
 
 "Integrity checks" and not "checks", deliberately. Those checks say the document
 is well-formed and leaks nothing. They do not say the numbers are right — see
-[Why you can trust the numbers](#why-you-can-trust-the-numbers) for what does
-and does not get verified.
+[Why you can trust the numbers](docs/TRUST.md) for what does and does not get
+verified.
 
 ### Step 6 — Look at them
 
 Open the `_reports` folder and double-click any `.html` file. It opens in your
 browser like a normal web page.
 
-**That's the whole tool.** Two commands, forever. Everything after this point is
-about pointing it at your real data instead of the fake company.
+**That's the whole tool.** Two commands, forever. Everything below is about
+pointing it at your real data instead of the fictional company.
 
 ---
 
-## Part 2 — What you need before using real data
+## Part 2 — Using your real data
 
-You need one or two API keys from whoever administers your company's Claude
-account. You almost certainly cannot create these yourself — they come out of
-the Claude admin console, and only an account owner or admin can make them.
+### What you need first
+
+One or two API keys from whoever administers your firm's Claude account. You
+almost certainly cannot create these yourself — they come out of the Claude
+admin console, and only an account owner or admin can make them.
 
 | You want | You need | Which reports it unlocks |
 |---|---|---|
 | Cost and usage numbers | An **Admin API key** | Waste Ledger, Value X-Ray |
 | The text of conversations | A **Compliance API key** | Exposure Report |
 
-You can start with just the Admin key and get two of the three reports. The
-Exposure Report is the one that needs to read what people actually wrote, which
-is a bigger decision — see [Part 4](#part-4--the-exposure-report-and-reading-peoples-conversations).
+Start with just the Admin key and you get two of the three reports. The Exposure
+Report is the one that needs to read what people actually wrote, which is a
+bigger decision — see
+[the Exposure Report](#part-3--the-exposure-report-and-reading-peoples-conversations).
 
-### Email to send your Claude administrator
+- The **Admin key** returns dollars, token counts and per-person usage totals.
+  It cannot read anybody's messages.
+- The **Compliance key** *can* read messages. Treat it like production database
+  credentials, because that is effectively what it is.
 
-Copy, paste, fill in the blanks:
+<details>
+<summary><b>An email you can send your Claude administrator</b> — copy, paste, fill in the blanks</summary>
+
+<br>
 
 > Hi — I'm setting up internal cost and governance reporting on our Claude
 > Enterprise account, using an open-source tool that runs entirely on my machine
@@ -137,16 +177,7 @@ Copy, paste, fill in the blanks:
 >
 > Thanks — happy to walk you through what the tool does first if useful.
 
-### What these keys can and cannot do
-
-- The **Admin key** returns dollars, token counts and per-person usage totals.
-  It cannot read anybody's messages.
-- The **Compliance key** *can* read messages. Treat it like production database
-  credentials, because that is effectively what it is.
-
----
-
-## Part 3 — Using your real data
+</details>
 
 ### Step 1 — Put your keys in your terminal
 
@@ -182,13 +213,12 @@ caio pull everything --data-dir data
 ```
 
 This creates a folder called `data` and fills it with your usage numbers and
-your seat list. First run pulls your history and takes a few minutes; later runs
-only pull what's new and take seconds.
+your seat list. The first run pulls your history and takes a few minutes; later
+runs only pull what's new and take seconds.
 
 `everything` means cost, usage and the seat directory. It deliberately does
 **not** include the text of conversations — that one is always asked for by name
-(`caio pull content`), because it needs a recorded consent decision first. See
-[Part 4](#part-4--the-exposure-report-and-reading-peoples-conversations).
+(`caio pull content`), because it needs a recorded consent decision first.
 
 ### Step 3 — Build your reports
 
@@ -196,11 +226,11 @@ only pull what's new and take seconds.
 caio all --data-dir data --out-dir _reports
 ```
 
-Same command as the demo, pointed at `data` instead of `data-demo`. Your reports
-land in `_reports`.
+Same command as the fictional company, pointed at `data` instead of `data-demo`.
+Your reports land in `_reports`.
 
 **Run these two commands every Monday morning and you have a standing weekly
-reporting pack.**
+reporting pack:**
 
 ```bash
 caio pull everything --data-dir data
@@ -239,13 +269,17 @@ accounts are service accounts rather than people. Which bare identifier is
 actually Salesforce. You work it out once, write it down once, and every report
 from then on honours it.
 
-These live in `data/_reports/config/`, next to the data they describe — so
-copying this tool to another business unit doesn't carry the old decisions with
-it. Both files are optional.
+Both files are optional, and both live in `data/_reports/config/`, next to the
+data they describe — so copying this tool to another business unit doesn't carry
+the old decisions with it.
 
-**`seat_exclusions.json`** — accounts that hold no active seat. They come out of
-the seat total, the idle-seat count, and the recoverable figure that goes to
-Finance.
+<details>
+<summary><b><code>seat_exclusions.json</code></b> — accounts that hold no active seat</summary>
+
+<br>
+
+They come out of the seat total, the idle-seat count, and the recoverable figure
+that goes to Finance.
 
 ```json
 {
@@ -260,10 +294,16 @@ This one matters more than it looks. Without it, every service account in your
 directory is priced as a seat somebody holds — which inflates the single number
 the Waste Ledger exists to produce, every week, in the direction that looks best.
 
-**`connector_aliases.json`** — names for connections that report as a bare
-identifier. Some connections arrive with no name attached, and nothing in the
-data can say what they are; the identifier is all the source publishes. Look each
-one up in your admin console once:
+</details>
+
+<details>
+<summary><b><code>connector_aliases.json</code></b> — names for connections that report as a bare identifier</summary>
+
+<br>
+
+Some connections arrive with no name attached, and nothing in the data can say
+what they are; the identifier is all the source publishes. Look each one up in
+your admin console once:
 
 ```json
 {"19b950ec-0c72-4e2e-9d3e-8a1f4c6b2e77": "Salesforce"}
@@ -272,22 +312,24 @@ one up in your admin console once:
 As a bonus, this fixes double-counting: a connection that reports under a name
 *and* under an identifier is counted twice until you say they're the same thing.
 
+</details>
+
 `caio check` prints which of these it found and how many entries each has, so a
 decision being honoured is visible — and one being ignored is too.
 
 ---
 
-## Part 4 — The Exposure Report, and reading people's conversations
+## Part 3 — The Exposure Report, and reading people's conversations
 
 The other two reports work on dollars and counts. This one has to read what your
 colleagues actually typed into Claude, and what the tools they connected sent
 back. In a financial firm that can include client records, deal terms, material
 nonpublic information, and live credentials.
 
-The tool will not touch that data until you've said yes on the record. When you
-first try, it stops, shows you a full page explaining exactly what will be stored
-and where, and asks for the name of the person accountable for the decision. That
-answer is saved next to the data.
+**The tool will not touch that data until you've said yes on the record.** When
+you first try, it stops, shows you a full page explaining exactly what will be
+stored and where, and asks for the name of the person accountable for the
+decision. That answer is saved next to the data.
 
 The point is simple: in six months, when somebody asks *"who decided we'd start
 reading this?"*, there is an answer with a name and a date on it.
@@ -296,171 +338,28 @@ reading this?"*, there is an answer with a name and a date on it.
 caio pull content --data-dir data
 ```
 
-Things worth knowing before you run it:
-
-- **The conversation text is stored on your machine**, under `data/raw/`. Nothing
-  is sent anywhere.
+- **The conversation text is stored on your machine**, under `data/raw/`.
+  Nothing is sent anywhere.
 - **You can delete it at any time.** Delete the `data/raw/` folder. The reports
-  and computed numbers survive; you just can't re-analyse without re-downloading.
-- **You can withdraw consent:** `python3 -m pipeline.fetch.consent --data-dir data --revoke`
-- **Consent doesn't travel.** It's recorded per data folder, so copying this tool
-  to another company or another business unit does not carry the old permission
-  with it.
+  and computed numbers survive.
+- **You can withdraw consent**, and consent doesn't travel to another data
+  folder, business unit or company.
 - **`data/` and `data-*/` are already in `.gitignore`**, by shape as well as by
   name, so conversation content cannot be committed by accident.
 
-### Then: nothing counts as a finding until it's been read twice
+Then nothing counts as a finding until it has been read twice — once by a judge,
+once by an independent verifier who is never told what the first one concluded.
+Only what survives both passes is published. You choose who does that reading: a
+person with a worksheet and no network calls at all, or a Claude model.
 
-This is the most important thing about this tool, so it's worth understanding.
-
-When the scan spots something that looks like a leaked password, that is a **lead
-to go check** — not a result. Historically only about **44%** of those leads turn
-out to be real once someone reads them. Some categories turn out real *none* of
-the time.
-
-So there are two more steps before anything is printed as a finding:
-
-1. **Judge** — someone (or something) reads each flagged passage and decides
-   whether it's genuinely sensitive.
-2. **Verify** — it gets read a *second* time, independently, and the second
-   reader is never told what the first one concluded. A checker who's been shown
-   the answer agrees with it, and that's a signature, not a check.
-
-Only what survives both passes is published. Anything the two passes disagree
-about is published as neither — a disagreement is a fact about the material, not
-a tie to break quietly.
-
-**Option A — a person does the reading.** No network calls, nothing extra to
-install. This is two passes, because a human is in the middle of it:
-
-```bash
-# 1. Writes review-worksheet.md, with each flagged passage and a blank VERDICT line
-caio judge --data-dir data --judge worksheet
-
-# 2. You (or a compliance colleague) open review-worksheet.md and fill in each
-#    VERDICT line. Then run exactly the same command again to read it back:
-caio judge --data-dir data --judge worksheet
-
-# 3. Then build the reports
-caio all --data-dir data --out-dir _reports
-```
-
-Verdicts you leave blank stay unread, and unread means not published. Nothing is
-counted just because you skipped it.
-
-> ⚠️ `review-worksheet.md` is the one file that contains raw conversation text in
-> plain sight. It's already in `.gitignore`. Delete it when you're done, and don't
-> email it around.
-
-**Option B — a Claude model does the reading.** One command, but it needs a
-one-off install and it sends the flagged passages to a model:
-
-```bash
-pip install anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-caio all --data-dir data --out-dir _reports --read --judge anthropic
-```
-
-> The model judge is the **only** part of this project that needs a third
-> library, and the only part that sends any of your content to a model. If your
-> firm would rather that never happen, use Option A. Everything else — the demo,
-> both cost reports, the scan, the tests — runs without it.
-
-**The report says on its own face who did the reading.** The built-in offline
-stand-in used by the demo is not a real reading, and any report built with it
-says so, so it can never be mistaken for the real thing.
-
----
-
-## Why you can trust the numbers
-
-Most usage dashboards will happily show you a big confident number. The value
-here is in what this tool *refuses* to do.
-
-**Every count is a floor, not a total.** It can read chat conversations. It
-cannot see every other Claude product, and some tool output is truncated before
-it ever reaches the tool. So it says *"at least this many, and the true number
-cannot be lower"* — never a total it can't stand behind.
-
-**Any group smaller than five people is reported as "fewer than five."** In a
-firm of a hundred, *"3 people in the commercial team last week"* is close enough
-to naming them that any reader can finish the sentence.
-
-**Nothing brand new gets a growth rate.** A tool connection that first appeared
-last month shows infinite growth this month. That artefact has been published as
-a real finding before, at real cost. Everything carries the date it first
-appeared, and anything too new to compare against is labelled as such.
-
-**Zero findings is a valid result.** If nothing crossed a threshold, the report
-says so plainly. Nothing is padded to fill a page.
-
-**Every finding names an owner and one thing they can actually do.** A finding
-about something nobody can change isn't a finding.
-
-### The publication gates
-
-No report is allowed out until it passes every gate, run against the finished
-file rather than against a promise about what's in it. A report is blocked if it
-contains an email address, a filename, a loose run of digits that could be a
-leaked value, a group of three described as "3 people", internal jargon, a
-regulatory claim the tool can't support, arithmetic that doesn't add up, a
-caveat that got quietly dropped during a rewrite, a column that is zero in every
-single row, or a record missing something the page needs to display.
-
-**Every one of those gates exists because that exact mistake once reached a real
-reader.**
-
-### What the gates do *not* check — and why the wording changed
-
-They check the document's **form**. Not one of them checks whether a number was
-computed from a field that exists.
-
-That distinction cost this project two confidently wrong reports. The metric code
-was written against the demo lake, whose shape didn't match what the live API
-returns, so several metrics read fields that were simply absent. A missing field
-doesn't crash — it sums to zero. And a zero passes every gate here: the document
-renders, nothing leaks, and the reconciliation block ties out perfectly, because
-zero equals zero. One of those zeros rendered as a stat card reading **"0% of
-connector calls failed"** over a data source that publishes no failure data at
-all.
-
-The run said `12 gates passed`, and everybody — including the people who built it
-— read that as *the numbers are right*. So it now says:
-
-```
-13 integrity checks passed · numbers not independently verified
-```
-
-Two things were added underneath that wording:
-
-- **A shape check at read time.** Each stage declares the fields it consumes, and
-  they're checked against what's actually in your lake. A missing field is now a
-  stated skip with a named reason — never a silent zero. `caio check` reports it.
-- **A zero-variance gate.** A column that is zero in every row, or a total of zero
-  reconciled against parts that are all zero, is refused. A column of zeros was
-  never measured as zero; it wasn't measured.
-
-The rule underneath both: **an absence of measurement is not a measurement of
-zero**, and a reader is entitled to have the two told apart. A blank where a
-failure rate used to be reads as good news.
-
-To run the gates against a report by hand:
-
-```bash
-python3 -m pipeline.render.validate _reports/exposure-report-2026-07-12.html \
-        --json-sidecar _reports/exposure-report-2026-07-12.json
-```
-
-That prints `13 integrity checks passed`. Leave off the `--json-sidecar` and
-you'll see one fewer — the last gate checks the report against its own data file,
-so it needs both files to run. Both are written side by side in `_reports/`.
+**→ Full walkthrough, including both reading options:
+[the Exposure Report](docs/EXPOSURE_REPORT.md).**
 
 ---
 
 ## Using it inside Claude Code (optional)
 
-If your team uses Claude Code, you can install this as a plugin and just ask for
+If your team uses Claude Code, you can install this as a plugin and ask for
 things in plain English instead of typing commands.
 
 **Step 1 — install it:**
@@ -480,8 +379,23 @@ It then introduces itself — what it is, the fact that it hasn't read anything
 yet, and the two things you can do next. Ask for the welcome again any time, or
 set `CAIO_WELCOME=never` to silence it.
 
-**Do I need `pip install` as well?** No. If you installed the plugin, the code is
-already on disk and every command works as:
+Five skills become available:
+
+| Ask for | Skill |
+|---|---|
+| "set this up" / "is my setup right?" | `caio-setup` |
+| "build this week's reports" | `caio-weekly-reports` |
+| "package the exposure report for Legal" | `caio-deliver-report` |
+| "help me review these flagged passages" | `caio-review-candidates` |
+| "where did this number come from?" | `caio-explain-report` |
+
+<details>
+<summary><b>Do I need <code>pip install</code> as well?</b></summary>
+
+<br>
+
+No. If you installed the plugin, the code is already on disk and every command
+works as:
 
 ```bash
 python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py" check --data-dir data
@@ -496,15 +410,7 @@ checkout once and the prefix goes away.
 In practice you won't type any of this — you ask in plain English and the skills
 run the right command for you. It's here for when you want to check what was run.
 
-Five skills become available:
-
-| Ask for | Skill |
-|---|---|
-| "set this up" / "is my setup right?" | `caio-setup` |
-| "build this week's reports" | `caio-weekly-reports` |
-| "package the exposure report for Legal" | `caio-deliver-report` |
-| "help me review these flagged passages" | `caio-review-candidates` |
-| "where did this number come from?" | `caio-explain-report` |
+</details>
 
 ---
 
@@ -514,10 +420,10 @@ Five skills become available:
 |---|---|---|
 | `command not found: python3` | Python isn't installed | Install from [python.org](https://www.python.org/downloads/). On Windows try `python` instead. |
 | `command not found: caio` | Step 3 didn't finish, or you're in the wrong folder | `cd` back into the project folder and re-run `pip install -e .`. Installed as a Claude Code plugin and never ran `pip`? You don't have `caio` — use `python3 "$CLAUDE_PLUGIN_ROOT/pipeline/cli.py"` instead. |
+| `command not found: pip` | `pip` isn't on your PATH | Use `python3 -m pip install -e .` |
 | The plugin's skills don't appear, or the plugin list is empty | It was installed part-way through a session | Start a new conversation. Nothing is broken and reinstalling won't help. |
 | An emailed report opens as a blank white page | The page draws itself when a browser opens it; a preview pane doesn't | Save the attachment and open it in a browser. Send reports as attachments, never pasted into an email body. |
-| `command not found: pip` | `pip` isn't on your PATH | Use `python3 -m pip install -e .` |
-| `CAIO_API_KEY, ANTHROPIC_ADMIN_KEY, or ANTHROPIC_API_KEY not set` | No key in this terminal window | Re-run the `export` from Part 3, Step 1. Closing the terminal clears it. |
+| `CAIO_API_KEY, ANTHROPIC_ADMIN_KEY, or ANTHROPIC_API_KEY not set` | No key in this terminal window | Re-run the `export` from Part 2, Step 1. Closing the terminal clears it. |
 | `401` or `403` from the API | The key is wrong, expired, or is the wrong *type* of key | Analytics needs an **Admin** key; conversation content needs a **Compliance** key. They aren't interchangeable. |
 | `no API key. Set CAIO_API_KEY to a Compliance Access Key` | You have an Admin key but not a Compliance one | Either request a Compliance key, or skip the Exposure Report and run the other two. |
 | A report is listed as blocked, not built | It failed one of the publication gates | The message names the gate. This is the tool working correctly — fix the cause, don't look for an override. |
@@ -528,21 +434,16 @@ Still stuck? Open an issue at
 [github.com/100xopensource/chief-ai-officer/issues](https://github.com/100xopensource/chief-ai-officer/issues).
 Please don't paste real report content or API keys into an issue.
 
----
-
 ## Common questions
 
 **Does any of our data leave the building?**
 Only to Anthropic's own API, and only when you ask for it. There is no
 telemetry, no analytics, no phone-home, and no 100x server involved at any
-point. Exactly two things make outbound calls, and you can check both yourself:
-
-- `pipeline/fetch/` — downloads your own account's data. These are the only two
-  files in the project that import `requests`.
-- `pipeline/judges/anthropic.py` — used *only* if you choose `--judge anthropic`,
-  which sends flagged passages to a Claude model to be read. If you don't use
-  that option, this file never runs. A person with a worksheet
-  (`--judge worksheet`) does the same job with no network calls at all.
+point. Exactly two places make outbound calls, and you can check both yourself:
+`pipeline/fetch/` downloads your own account's data, and
+`pipeline/judges/anthropic.py` runs *only* if you choose the model judge in the
+Exposure Report. A person with a worksheet does the same job with no network
+calls at all.
 
 **Does installing this read our conversations?**
 No. Installing reads nothing and downloads nothing. Every download is a command
@@ -566,129 +467,33 @@ Weekly. The reports are built around a week-long window and compare it to the
 previous four weeks averaged.
 
 **Is this an Anthropic product?**
-No. It's open source from [100x](https://100xteam.ai), Apache-2.0 licensed, and
-reads Anthropic's public admin and compliance APIs like any other client would.
+No. It's open source from [100x Partners](https://100xpartners.ai), Apache-2.0
+licensed, and reads Anthropic's public admin and compliance APIs like any other
+client would.
 
----
+## Repository guide
 
-## Reference
+- [Why you can trust the numbers](docs/TRUST.md) — what the publication gates
+  check, what they deliberately don't, and the two wrong reports that changed
+  the wording.
+- [The Exposure Report](docs/EXPOSURE_REPORT.md) — consent, the two reading
+  passes, and choosing between a person and a model.
+- [Command reference](docs/REFERENCE.md) — every command, the six stages, what's
+  in this repository, and running without installing.
+- [Architecture](docs/architecture.md) — four diagrams: what ships, what a person
+  does with it, how data moves, and the rule separating a match from a finding.
+- [Privacy](PRIVACY.md) · [Security policy](SECURITY.md) ·
+  [Contributing](CONTRIBUTING.md) · [Handoff notes](HANDOFF.md)
 
-### Every command
+## Licensing
 
-| Command | What it does |
-|---|---|
-| `caio welcome` | What this is and what to do next, in plain English |
-| `caio demo` | Invent a fictional company to try it on |
-| `caio pull` | Download your own account's data into the lake |
-| `caio check` | What your data can answer, and what's missing |
-| `caio scan` | Sweep conversation content for sensitive-data patterns |
-| `caio judge` | Read the flagged passages and decide if they're real |
-| `caio verify` | Independently re-read whatever the first pass called real |
-| `caio report` | Build one report, or all three |
-| `caio deliver` | Package a built report for sending |
-| `caio all` | Check, scan and build everything — **the Monday-morning command** |
-
-Add `--help` to any of them for the full option list.
-
-Downloading is a command of its own on purpose, and `caio all` never does it.
-Pulling touches a network and needs credentials, and someone who asked for a
-report should not get a network call they didn't ask for. So you ask for it by
-name:
-
-```bash
-caio pull analytics  --data-dir data   # cost and usage
-caio pull directory  --data-dir data   # who holds a seat
-caio pull everything --data-dir data   # both of the above — never content
-caio pull content    --data-dir data   # conversation text, consent-gated
-
-python3 -m pipeline.fetch.consent --data-dir data --show   # what you consented to
-```
-
-Anything you put after the target is passed straight to the fetcher, so
-`caio pull analytics --since 2026-04-01` and `--full-refresh` work as before.
-
-### Prefer not to install?
-
-Every command works without `pip install -e .` if you tell Python where the code
-lives. `caio X` becomes `PYTHONPATH=plugins/100x-chief-ai-officer python3 -m pipeline.cli X`:
-
-```bash
-pip install -r requirements.txt
-export PYTHONPATH=plugins/100x-chief-ai-officer
-
-python3 -m pipeline.cli demo --out data-demo
-python3 -m pipeline.cli all  --data-dir data-demo --out-dir _reports
-```
-
-### What's in this repository
-
-```
-plugins/100x-chief-ai-officer/
-  pipeline/
-    fetch/        the only modules that touch a network
-    lake/         how downloaded data is stored and read back
-    detectors/    nine families of sensitive-data pattern
-    stages/       gap check, scan, metrics, findings ledger
-    render/       compose, build, validate, deliver
-    demo/         the fictional company
-  skills/         five skills, for using this from Claude
-  hooks/          the greeting shown the first time after installing
-  references/     the data contract, the pipeline, the privacy rules
-tools/scrubber/     the publication gate — run before anything ships
-docs/mock-reports/  three example reports, fictional company
-tests/              81 tests, run end to end with no credentials
-```
-
-### The six stages
-
-One command runs them in order; each also runs alone.
-
-| Stage | What it does |
-|---|---|
-| `x0` gap check | What can be answered, what's missing, which dates |
-| `x1` pull | Download into local storage; content lands raw before parsing |
-| `x2` metrics | Arithmetic over the data; no model reads anything here |
-| `x3` classify | Something reads the flagged material and judges it |
-| `x4` verify | An independent pass tries to break x3's conclusions |
-| `x5` lock | The findings ledger, then render and validate |
-
-### Going deeper
-
-- [`docs/architecture.md`](docs/architecture.md) — four diagrams: what ships, what
-  a person does with it, how data moves, and the rule separating a match from a
-  finding.
-- [`references/pipeline_spine.md`](plugins/100x-chief-ai-officer/references/pipeline_spine.md)
-  — what each stage does and where to add things.
-- [`references/data_contract.md`](plugins/100x-chief-ai-officer/references/data_contract.md)
-  — every table and column of downloaded data.
-- [`references/privacy_rules.md`](plugins/100x-chief-ai-officer/references/privacy_rules.md)
-  — the privacy rules the code enforces, and why each exists.
-- [`HANDOFF.md`](HANDOFF.md) — what's done and what's next.
-
-### Requirements
-
-Python 3.10 or newer, and `pip`. Two dependencies: `requests` for downloading,
-`pandas` for the analysis. Storing data, the gap check, the metrics and the
-report gates are all standard-library only — so the parts that have to run in a
-locked-down environment have nothing to install.
-
-One optional extra: `pip install anthropic`, needed only if you want a model to
-do the reading in `caio judge --judge anthropic`.
-
-### Status
-
-All six stages are implemented and tested end to end against the fictional
-company, with no credentials needed. 81 tests.
-
-The reading passes ship with three judges: an offline stand-in for the demo and
-for tests, a worksheet a person fills in, and a Claude model. The stand-in is
-not a real reading, and every report built with it says so on its face.
-
-### Licence
-
-Apache-2.0. See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE),
-[`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md) and
-[`PRIVACY.md`](PRIVACY.md).
-
-Security issues: please follow [`SECURITY.md`](SECURITY.md) rather than opening a
-public issue.
+- This repository is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE)
+  for the attribution notice that must be kept in any copy.
+- `requests` and `pandas` are runtime dependencies installed from PyPI. They are
+  not redistributed here. `anthropic` is optional and only needed for the model
+  judge.
+- Apache-2.0 grants no trademark rights. You may fork and redistribute the code;
+  you may not use the 100x name or marks to describe your fork or imply that
+  100x produced it.
+- Security issues: please follow [SECURITY.md](SECURITY.md) rather than opening a
+  public issue.
